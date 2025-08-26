@@ -1,9 +1,9 @@
-// src/App.jsx
 import React, { useState } from 'react';
 import './App.css';
 import Header from './components/Layout/Header/Header.jsx';
 import Welcome from './pages/Welcome/Welcome.jsx';
 import Explore from './pages/Explore/Explore.jsx';
+import NFTDetail from './pages/NFTDetail/NFTDetail.jsx';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('welcome');
@@ -23,6 +23,7 @@ function App() {
   };
 
   const handleNavigate = (page, nft = null) => {
+    console.log('Navigation vers:', page, 'avec NFT:', nft);
     setCurrentPage(page);
     if (nft) {
       setSelectedNFT(nft);

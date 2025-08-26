@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './Welcome.css';
-import NFTCard from '../../components/NFTCard/NFTCard.jsx';
+import NFTCard from '../../components/NFTCard/NFTCard';
 import { Search, ArrowRight, Users, Package, TrendingUp } from 'lucide-react';
-import { getHighestSaleNFT, getAvailableNFTs, marketStats } from '../../data/mockData.js';
+import { getHighestSaleNFT, getAvailableNFTs, marketStats } from '../../data/mockData';
 
 const Welcome = ({ onNavigate }) => {
   const [highestSaleNFT, setHighestSaleNFT] = useState(null);

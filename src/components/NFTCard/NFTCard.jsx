@@ -44,6 +44,7 @@ const NFTCard = ({ nft, badge, onClick }) => {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onClick={() => onClick && onClick(nft)}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
       <div className="nft-card-image-container">
         <img src={nft.image} alt={nft.name} className="nft-card-image" />
