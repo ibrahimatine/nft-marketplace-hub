@@ -1,19 +1,7 @@
-@import './styles/theme.css';
-@import './styles/globals.css';
-
-.app {
-  min-height: 100vh;
-  background-color: var(--color-white);
-  color: var(--color-text);
-  font-family: var(--font-family);
-}
-
-.app-main {
-  width: 100%;
-}
+/* src/App.css */
 
 /* ==================== */
-/* src/styles/theme.css */
+/* Variables CSS (Theme) */
 /* ==================== */
 :root {
   /* Couleurs principales */
@@ -87,7 +75,7 @@
 }
 
 /* ==================== */
-/* src/styles/globals.css */
+/* Styles globaux */
 /* ==================== */
 * {
   margin: 0;
@@ -214,4 +202,18 @@ input:focus, textarea:focus, select:focus {
   .container {
     padding: 0 var(--spacing-md);
   }
+}
+
+/* ==================== */
+/* Styles App */
+/* ==================== */
+.app {
+  min-height: 100vh;
+  background-color: var(--color-white);
+  color: var(--color-text);
+  font-family: var(--font-family);
+}
+
+.app-main {
+  width: 100%;
 }

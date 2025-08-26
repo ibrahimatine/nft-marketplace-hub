@@ -1,35 +1,65 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
+import React, { useState } from 'react';
+import './App.css';
+import Header from './components/Layout/Header/Header.jsx';
+import Welcome from './pages/Welcome/Welcome.jsx';
+import Explore from './pages/Explore/Explore.jsx';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [currentPage, setCurrentPage] = useState('welcome');
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
+  const [selectedNFT, setSelectedNFT] = useState(null);
+
+  const handleConnect = () => {
+    // Simuler la connexion du wallet
+    setIsWalletConnected(true);
+    setWalletAddress('0x742d...8A9F');
+  };
+
+  const handleDisconnect = () => {
+    setIsWalletConnected(false);
+    setWalletAddress('');
+  };
+
+  const handleNavigate = (page, nft = null) => {
+    setCurrentPage(page);
+    if (nft) {
+      setSelectedNFT(nft);
+    }
+  };
+
+  const renderPage = () => {
+    switch(currentPage) {
+      case 'welcome':
+        return <Welcome onNavigate={handleNavigate} />;
+      case 'explore':
+        return <Explore onNavigate={handleNavigate} isWalletConnected={isWalletConnected} />;
+      case 'nft-detail':
+        return <NFTDetail nft={selectedNFT} onNavigate={handleNavigate} isWalletConnected={isWalletConnected} walletAddress={walletAddress} />;
+      case 'portfolio':
+        return <Portfolio onNavigate={handleNavigate} walletAddress={walletAddress} isWalletConnected={isWalletConnected} />;
+      case 'submit':
+        return <SubmitNFT onNavigate={handleNavigate} isWalletConnected={isWalletConnected} />;
+      default:
+        return <Welcome onNavigate={handleNavigate} />;
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="app">
+      <Header 
+        onNavigate={handleNavigate}
+        isWalletConnected={isWalletConnected}
+        walletAddress={walletAddress}
+        onConnect={handleConnect}
+        onDisconnect={handleDisconnect}
+      />
+      <main className="app-main">
+        {renderPage()}
+      </main>
+    </div>
+  );
 }
 
-export default App
+export default App;
