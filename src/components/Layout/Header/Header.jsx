@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import './Header.css';
 import WalletButton from '../../WalletButton/WalletButton';
+import { useAppContext } from '../../../App';
 import { Menu, X } from 'lucide-react';
 
-const Header = ({ onNavigate, isWalletConnected, walletAddress, onConnect, onDisconnect }) => {
+const Header = () => {
+  const { isWalletConnected, walletAddress, handleConnect, handleDisconnect } = useAppContext();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
-  const handleNavClick = (page) => {
-    onNavigate(page);
+  const handleNavClick = (path) => {
+    navigate(path);
     setMobileMenuOpen(false);
   };
 
@@ -15,40 +19,40 @@ const Header = ({ onNavigate, isWalletConnected, walletAddress, onConnect, onDis
     <>
       <header className="header">
         <nav className="header-nav container">
-          <div 
+          <Link 
+            to="/"
             className="header-logo gradient-text"
-            onClick={() => handleNavClick('welcome')}
           >
             NFT Hub
-          </div>
+          </Link>
 
           {/* Desktop Menu */}
           <div className="header-desktop-menu">
-            <button 
-              className="header-link" 
-              onClick={() => handleNavClick('explore')}
+            <Link 
+              to="/explore"
+              className="header-link"
             >
               Explorer
-            </button>
-            <button 
+            </Link>
+            <Link 
+              to="/submit"
               className="header-link"
-              onClick={() => handleNavClick('submit')}
             >
               Soumettre NFT
-            </button>
+            </Link>
             {isWalletConnected && (
-              <button 
+              <Link 
+                to="/portfolio"
                 className="header-link"
-                onClick={() => handleNavClick('portfolio')}
               >
                 Portfolio
-              </button>
+              </Link>
             )}
             <WalletButton
               isConnected={isWalletConnected}
               address={walletAddress}
-              onConnect={onConnect}
-              onDisconnect={onDisconnect}
+              onConnect={handleConnect}
+              onDisconnect={handleDisconnect}
             />
           </div>
 
@@ -73,32 +77,35 @@ const Header = ({ onNavigate, isWalletConnected, walletAddress, onConnect, onDis
           </button>
           
           <nav className="mobile-menu-nav">
-            <button 
+            <Link 
+              to="/explore"
               className="mobile-menu-link"
-              onClick={() => handleNavClick('explore')}
+              onClick={() => setMobileMenuOpen(false)}
             >
               Explorer
-            </button>
-            <button 
+            </Link>
+            <Link 
+              to="/submit"
               className="mobile-menu-link"
-              onClick={() => handleNavClick('submit')}
+              onClick={() => setMobileMenuOpen(false)}
             >
               Soumettre NFT
-            </button>
+            </Link>
             {isWalletConnected && (
-              <button 
+              <Link 
+                to="/portfolio"
                 className="mobile-menu-link"
-                onClick={() => handleNavClick('portfolio')}
+                onClick={() => setMobileMenuOpen(false)}
               >
                 Portfolio
-              </button>
+              </Link>
             )}
             <div className="mobile-menu-wallet">
               <WalletButton
                 isConnected={isWalletConnected}
                 address={walletAddress}
-                onConnect={onConnect}
-                onDisconnect={onDisconnect}
+                onConnect={handleConnect}
+                onDisconnect={handleDisconnect}
               />
             </div>
           </nav>

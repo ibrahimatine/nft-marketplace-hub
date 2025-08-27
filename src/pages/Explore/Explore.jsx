@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Explore.css';
 import NFTCard from '../../components/NFTCard/NFTCard';
 import { Filter, Search, Grid, List } from 'lucide-react';
 import { mockNFTs, categories, priceFilters } from '../../data/mockData';
+import { useAppContext } from '../../App';
 
-const Explore = ({ onNavigate, isWalletConnected }) => {
+const Explore = () => {
+  const navigate = useNavigate();
+  const { isWalletConnected, setSelectedNFT } = useAppContext();
+  
   const [nfts, setNfts] = useState([]);
   const [filteredNfts, setFilteredNfts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('Tous');
@@ -56,7 +61,12 @@ const Explore = ({ onNavigate, isWalletConnected }) => {
   };
 
   const handleNFTClick = (nft) => {
-    onNavigate('nft-detail', nft);
+    setSelectedNFT(nft);
+    navigate(`/nft/${nft.id}`);
+  };
+
+  const handleSubmitClick = () => {
+    navigate('/submit');
   };
 
   // Pagination
@@ -154,7 +164,7 @@ const Explore = ({ onNavigate, isWalletConnected }) => {
             {/* Submit NFT Button */}
             <button 
               className="btn btn-primary"
-              onClick={() => onNavigate('submit')}
+              onClick={handleSubmitClick}
             >
               Soumettre un NFT
             </button>

@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Welcome.css';
 import NFTCard from '../../components/NFTCard/NFTCard';
 import { Search, ArrowRight, Users, Package, TrendingUp } from 'lucide-react';
 import { getHighestSaleNFT, getAvailableNFTs, marketStats } from '../../data/mockData';
+import { useAppContext } from '../../App';
 
-const Welcome = ({ onNavigate }) => {
+const Welcome = () => {
+  const navigate = useNavigate();
+  const { setSelectedNFT } = useAppContext();
   const [highestSaleNFT, setHighestSaleNFT] = useState(null);
   const [featuredNFT, setFeaturedNFT] = useState(null);
 
@@ -19,7 +23,8 @@ const Welcome = ({ onNavigate }) => {
   }, []);
 
   const handleNFTClick = (nft) => {
-    onNavigate('nft-detail', nft);
+    setSelectedNFT(nft);
+    navigate(`/nft/${nft.id}`);
   };
 
   return (
@@ -63,14 +68,14 @@ const Welcome = ({ onNavigate }) => {
           <div className="welcome-cta">
             <button 
               className="btn btn-primary"
-              onClick={() => onNavigate('explore')}
+              onClick={() => navigate('/explore')}
             >
               <Search size={20} />
               Explorer la collection
             </button>
             <button 
               className="btn btn-secondary"
-              onClick={() => onNavigate('submit')}
+              onClick={() => navigate('/submit')}
             >
               Soumettre un NFT
               <ArrowRight size={20} />
@@ -111,7 +116,7 @@ const Welcome = ({ onNavigate }) => {
           <div className="featured-footer">
             <button 
               className="btn btn-outline"
-              onClick={() => onNavigate('explore')}
+              onClick={() => navigate('/explore')}
             >
               Voir tous les NFTs
               <ArrowRight size={20} />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import './NFTDetail.css';
 import { 
   ArrowLeft, 
@@ -15,8 +16,15 @@ import {
   ShoppingCart,
   DollarSign
 } from 'lucide-react';
+import { useAppContext } from '../../App';
+import { mockNFTs } from '../../data/mockData';
 
-const NFTDetail = ({ nft, onNavigate, isWalletConnected, walletAddress }) => {
+const NFTDetail = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { selectedNFT, isWalletConnected, walletAddress } = useAppContext();
+  
+  const [nft, setNft] = useState(null);
   const [isLiked, setIsLiked] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [activeTab, setActiveTab] = useState('details');
@@ -24,14 +32,31 @@ const NFTDetail = ({ nft, onNavigate, isWalletConnected, walletAddress }) => {
   const [showListingModal, setShowListingModal] = useState(false);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
-  // Si aucun NFT n'est sélectionné, retourner à l'accueil
+  // Récupérer le NFT par ID
   useEffect(() => {
-    if (!nft) {
-      onNavigate('welcome');
-    }
-  }, [nft, onNavigate]);
+    const nftId = parseInt(id);
+    // Essayer d'abord le selectedNFT du contexte, sinon chercher dans mockNFTs
+    const foundNFT = selectedNFT?.id === nftId ? selectedNFT : mockNFTs.find(n => n.id === nftId);
+    setNft(foundNFT || null);
+  }, [id, selectedNFT]);
 
-  if (!nft) return null;
+  // Loading state
+  if (!nft) {
+    return (
+      <div className="nft-detail">
+        <div className="container">
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            Chargement...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Si NFT non trouvé après tentative de récupération, rediriger
+  if (nft === null) {
+    return <Navigate to="/explore" replace />;
+  }
 
   const isOwner = isWalletConnected && walletAddress === nft.owner;
 
@@ -43,6 +68,10 @@ const NFTDetail = ({ nft, onNavigate, isWalletConnected, walletAddress }) => {
     setShowShareMenu(!showShareMenu);
     // Copier le lien dans le presse-papier
     navigator.clipboard.writeText(window.location.href);
+  };
+
+  const handleBack = () => {
+    navigate('/explore');
   };
 
   const handleListForSale = () => {
@@ -95,7 +124,7 @@ const NFTDetail = ({ nft, onNavigate, isWalletConnected, walletAddress }) => {
         <div className="detail-header">
           <button 
             className="back-button"
-            onClick={() => onNavigate('explore')}
+            onClick={handleBack}
           >
             <ArrowLeft size={20} />
             Retour

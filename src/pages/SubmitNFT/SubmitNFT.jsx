@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate, Navigate } from 'react-router-dom';
 import './SubmitNFT.css';
 import { 
   Upload, 
@@ -13,8 +14,11 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { categories } from '../../data/mockData';
+import { useAppContext } from '../../App';
 
-const SubmitNFT = ({ onNavigate, isWalletConnected }) => {
+const SubmitNFT = () => {
+  const navigate = useNavigate();
+  const { isWalletConnected } = useAppContext();
   const fileInputRef = useRef(null);
   const [dragActive, setDragActive] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,9 +42,9 @@ const SubmitNFT = ({ onNavigate, isWalletConnected }) => {
   // Redirect if not connected
   useEffect(() => {
     if (!isWalletConnected) {
-      onNavigate('welcome');
+      navigate('/');
     }
-  }, [isWalletConnected, onNavigate]);
+  }, [isWalletConnected, navigate]);
 
   // Handle drag events
   const handleDrag = (e) => {
@@ -167,7 +171,7 @@ const SubmitNFT = ({ onNavigate, isWalletConnected }) => {
       
       // Redirect to portfolio after 2 seconds
       setTimeout(() => {
-        onNavigate('portfolio');
+        navigate('/portfolio');
       }, 2000);
       
     } catch (error) {
@@ -179,7 +183,7 @@ const SubmitNFT = ({ onNavigate, isWalletConnected }) => {
   };
 
   if (!isWalletConnected) {
-    return null; // Will redirect via useEffect
+    return <Navigate to="/" replace />;
   }
 
   if (submitted) {
@@ -192,7 +196,7 @@ const SubmitNFT = ({ onNavigate, isWalletConnected }) => {
             <p>Votre NFT "{formData.name}" a été créé et ajouté à votre collection.</p>
             <button 
               className="btn btn-primary"
-              onClick={() => onNavigate('portfolio')}
+              onClick={() => navigate('/portfolio')}
             >
               Voir mon portfolio
             </button>
@@ -209,7 +213,7 @@ const SubmitNFT = ({ onNavigate, isWalletConnected }) => {
         <div className="submit-header">
           <button 
             className="back-button"
-            onClick={() => onNavigate('explore')}
+            onClick={() => navigate('/explore')}
           >
             <ArrowLeft size={20} />
             Retour
@@ -428,7 +432,7 @@ const SubmitNFT = ({ onNavigate, isWalletConnected }) => {
               <button
                 type="button"
                 className="btn btn-secondary"
-                onClick={() => onNavigate('explore')}
+                onClick={() => navigate('/explore')}
                 disabled={isSubmitting}
               >
                 Annuler
