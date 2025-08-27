@@ -4,6 +4,8 @@ import Header from './components/Layout/Header/Header.jsx';
 import Welcome from './pages/Welcome/Welcome.jsx';
 import Explore from './pages/Explore/Explore.jsx';
 import NFTDetail from './pages/NFTDetail/NFTDetail.jsx';
+import Portfolio from './pages/Portfolio/Portfolio.jsx';
+
 
 function App() {
   const [currentPage, setCurrentPage] = useState('welcome');
