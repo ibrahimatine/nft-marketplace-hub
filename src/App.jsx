@@ -5,6 +5,7 @@ import Welcome from './pages/Welcome/Welcome.jsx';
 import Explore from './pages/Explore/Explore.jsx';
 import NFTDetail from './pages/NFTDetail/NFTDetail.jsx';
 import Portfolio from './pages/Portfolio/Portfolio.jsx';
+import SubmitNFT from './pages/SubmitNFT/SubmitNFT.jsx';
 
 
 function App() {
