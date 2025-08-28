@@ -1,19 +1,13 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useAccount } from 'wagmi';
 import './Header.css';
 import WalletButton from '../../WalletButton/WalletButton';
-import { useAppContext } from '../../../App';
 import { Menu, X } from 'lucide-react';
 
 const Header = () => {
-  const { isWalletConnected, walletAddress, handleConnect, handleDisconnect } = useAppContext();
+  const { isConnected } = useAccount();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const handleNavClick = (path) => {
-    navigate(path);
-    setMobileMenuOpen(false);
-  };
 
   return (
     <>
@@ -40,7 +34,7 @@ const Header = () => {
             >
               Soumettre NFT
             </Link>
-            {isWalletConnected && (
+            {isConnected && (
               <Link 
                 to="/portfolio"
                 className="header-link"
@@ -48,12 +42,7 @@ const Header = () => {
                 Portfolio
               </Link>
             )}
-            <WalletButton
-              isConnected={isWalletConnected}
-              address={walletAddress}
-              onConnect={handleConnect}
-              onDisconnect={handleDisconnect}
-            />
+            <WalletButton />
           </div>
 
           {/* Mobile Menu Button */}
@@ -91,7 +80,7 @@ const Header = () => {
             >
               Soumettre NFT
             </Link>
-            {isWalletConnected && (
+            {isConnected && (
               <Link 
                 to="/portfolio"
                 className="mobile-menu-link"
@@ -101,12 +90,7 @@ const Header = () => {
               </Link>
             )}
             <div className="mobile-menu-wallet">
-              <WalletButton
-                isConnected={isWalletConnected}
-                address={walletAddress}
-                onConnect={handleConnect}
-                onDisconnect={handleDisconnect}
-              />
+              <WalletButton />
             </div>
           </nav>
         </div>

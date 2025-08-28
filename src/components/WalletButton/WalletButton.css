@@ -69,3 +69,21 @@
     justify-content: center;
   }
 }
+
+.wallet-button-error {
+  background-color: var(--color-error);
+}
+
+.wallet-button-error:hover {
+  background-color: #DC2626;
+}
+
+.chain-icon {
+  margin-left: var(--spacing-xs);
+  display: flex;
+  align-items: center;
+}
+
+.chain-icon img {
+  border-radius: var(--radius-full);
+}
