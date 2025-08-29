@@ -1,4 +1,5 @@
 import { getDefaultConfig } from '@rainbow-me/rainbowkit';
+
 import {
     mainnet,
     polygon,
