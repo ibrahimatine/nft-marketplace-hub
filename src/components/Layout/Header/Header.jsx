@@ -4,45 +4,41 @@ import { useAccount } from 'wagmi';
 import './Header.css';
 import WalletButton from '../../WalletButton/WalletButton';
 import { Menu, X } from 'lucide-react';
+import { useWalletBalance } from '../../../blockchain/hooks/useBalance';
 
 const Header = () => {
   const { isConnected } = useAccount();
+  const { balance } = useWalletBalance();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <>
       <header className="header">
         <nav className="header-nav container">
-          <Link 
-            to="/"
-            className="header-logo gradient-text"
-          >
+          <Link to="/" className="header-logo gradient-text">
             NFT Hub
           </Link>
 
           {/* Desktop Menu */}
           <div className="header-desktop-menu">
-            <Link 
-              to="/explore"
-              className="header-link"
-            >
+            <Link to="/explore" className="header-link">
               Explorer
             </Link>
-            <Link 
-              to="/submit"
-              className="header-link"
-            >
+            <Link to="/submit" className="header-link">
               Soumettre NFT
             </Link>
+
             {isConnected && (
-              <Link 
-                to="/portfolio"
-                className="header-link"
-              >
-                Portfolio
-              </Link>
+              <>
+                <Link to="/portfolio" className="header-link">
+                  Portfolio
+                </Link>
+                <span className="header-balance">
+                  {balance?.formatted} {balance?.symbol}
+                </span>
+                <WalletButton />
+              </>
             )}
-            <WalletButton />
           </div>
 
           {/* Mobile Menu Button */}
@@ -58,22 +54,22 @@ const Header = () => {
       {/* Mobile Menu */}
       <div className={`mobile-menu ${mobileMenuOpen ? 'mobile-menu-open' : ''}`}>
         <div className="mobile-menu-content">
-          <button 
+          <button
             className="mobile-menu-close"
             onClick={() => setMobileMenuOpen(false)}
           >
             <X size={24} />
           </button>
-          
+
           <nav className="mobile-menu-nav">
-            <Link 
+            <Link
               to="/explore"
               className="mobile-menu-link"
               onClick={() => setMobileMenuOpen(false)}
             >
               Explorer
             </Link>
-            <Link 
+            <Link
               to="/submit"
               className="mobile-menu-link"
               onClick={() => setMobileMenuOpen(false)}
@@ -81,7 +77,7 @@ const Header = () => {
               Soumettre NFT
             </Link>
             {isConnected && (
-              <Link 
+              <Link
                 to="/portfolio"
                 className="mobile-menu-link"
                 onClick={() => setMobileMenuOpen(false)}
@@ -91,6 +87,11 @@ const Header = () => {
             )}
             <div className="mobile-menu-wallet">
               <WalletButton />
+              {isConnected && (
+                <span className="header-balance">
+                  {balance?.formatted} {balance?.symbol}
+                </span>
+              )}
             </div>
           </nav>
         </div>

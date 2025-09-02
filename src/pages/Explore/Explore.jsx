@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import './Explore.css';
 import NFTCard from '../../components/NFTCard/NFTCard';
 import { Filter, Search, Grid, List } from 'lucide-react';
-import { mockNFTs, categories, priceFilters } from '../../data/mockData';
+import { categories, priceFilters } from '../../data/mockData';
 import { useAppContext } from '../../App';
+import { useNFTs } from '../../blockchain/hooks/useNFTs';
 
 const Explore = () => {
   const navigate = useNavigate();
-  const { isWalletConnected, setSelectedNFT } = useAppContext();
-  
+  const { setSelectedNFT } = useAppContext();
+  const { nfts: blockchainNFTs, loading } = useNFTs(); // hook blockchain
+
   const [nfts, setNfts] = useState([]);
   const [filteredNfts, setFilteredNfts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('Tous');
@@ -21,9 +23,11 @@ const Explore = () => {
   const itemsPerPage = 6;
 
   useEffect(() => {
-    setNfts(mockNFTs);
-    setFilteredNfts(mockNFTs);
-  }, []);
+    if (blockchainNFTs.length > 0) {
+      setNfts(blockchainNFTs);
+      setFilteredNfts(blockchainNFTs);
+    }
+  }, [blockchainNFTs]);
 
   useEffect(() => {
     filterNFTs();
@@ -32,18 +36,14 @@ const Explore = () => {
   const filterNFTs = () => {
     let filtered = [...nfts];
 
-    // Filtre par catégorie
     if (selectedCategory !== 'Tous') {
       filtered = filtered.filter(nft => nft.category === selectedCategory);
     }
 
-    // Filtre par prix
     filtered = filtered.filter(nft => 
-      nft.price >= selectedPriceFilter.min && 
-      nft.price <= selectedPriceFilter.max
+      nft.price >= selectedPriceFilter.min && nft.price <= selectedPriceFilter.max
     );
 
-    // Filtre par recherche
     if (searchQuery) {
       filtered = filtered.filter(nft => 
         nft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -51,7 +51,6 @@ const Explore = () => {
       );
     }
 
-    // Filtre "en vente uniquement"
     if (showOnlyForSale) {
       filtered = filtered.filter(nft => nft.forSale);
     }
@@ -69,7 +68,6 @@ const Explore = () => {
     navigate('/submit');
   };
 
-  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentNfts = filteredNfts.slice(indexOfFirstItem, indexOfLastItem);
@@ -80,10 +78,11 @@ const Explore = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  if (loading) return <p>Chargement des NFTs...</p>;
+
   return (
     <div className="explore">
       <div className="container">
-        {/* Header */}
         <div className="explore-header">
           <h1 className="explore-title">Explorer les NFTs</h1>
           <p className="explore-subtitle">
@@ -91,10 +90,8 @@ const Explore = () => {
           </p>
         </div>
 
-        {/* Filters Bar */}
         <div className="explore-filters">
           <div className="filters-row">
-            {/* Search */}
             <div className="search-box">
               <Search size={20} />
               <input
@@ -105,7 +102,6 @@ const Explore = () => {
               />
             </div>
 
-            {/* View Toggle */}
             <div className="view-toggle">
               <button 
                 className={`view-btn ${gridView ? 'active' : ''}`}
@@ -123,7 +119,6 @@ const Explore = () => {
           </div>
 
           <div className="filters-row">
-            {/* Category Filter */}
             <div className="filter-group">
               <label>Catégorie</label>
               <select 
@@ -136,7 +131,6 @@ const Explore = () => {
               </select>
             </div>
 
-            {/* Price Filter */}
             <div className="filter-group">
               <label>Prix</label>
               <select 
@@ -149,7 +143,6 @@ const Explore = () => {
               </select>
             </div>
 
-            {/* For Sale Toggle */}
             <div className="filter-group">
               <label className="checkbox-label">
                 <input
@@ -161,7 +154,6 @@ const Explore = () => {
               </label>
             </div>
 
-            {/* Submit NFT Button */}
             <button 
               className="btn btn-primary"
               onClick={handleSubmitClick}
@@ -171,7 +163,6 @@ const Explore = () => {
           </div>
         </div>
 
-        {/* NFT Grid/List */}
         <div className={`nft-container ${gridView ? 'nft-grid' : 'nft-list'}`}>
           {currentNfts.length > 0 ? (
             currentNfts.map(nft => (
@@ -200,7 +191,6 @@ const Explore = () => {
           )}
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="pagination">
             <button 
