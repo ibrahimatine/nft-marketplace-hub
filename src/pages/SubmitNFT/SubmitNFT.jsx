@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SubmitNFT.css';
 import { useAppContext } from '../../App';
-import { useMint } from '../../blockchain/hooks/useMint';
 
 const SubmitNFT = () => {
   const navigate = useNavigate();

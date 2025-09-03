@@ -5,7 +5,6 @@ import NFTCard from '../../components/NFTCard/NFTCard';
 import { Filter, Search, Grid, List } from 'lucide-react';
 import { categories, priceFilters } from '../../data/mockData';
 import { useAppContext } from '../../App';
-import { useNFTs } from '../../blockchain/hooks/useNFTs';
 
 const Explore = () => {
   const navigate = useNavigate();

@@ -4,8 +4,6 @@ import './Portfolio.css';
 import NFTCard from '../../components/NFTCard/NFTCard';
 import { Wallet, Package, DollarSign, TrendingUp, Grid, List, Tag, Eye, EyeOff, ShoppingBag, Brush } from 'lucide-react';
 import { useAppContext } from '../../App';
-import { useNFTs } from '../../blockchain/hooks/useNFTs';
-import { useBalance } from '../../blockchain/hooks/useBalance';
 
 const Portfolio = () => {
   const navigate = useNavigate();

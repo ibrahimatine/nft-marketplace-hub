@@ -14,7 +14,7 @@ import {
 
 export const config = getDefaultConfig({
   appName: 'NFT Hub',
-  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || 'YOUR_PROJECT_ID',
+  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '5ce045e2ffb9e2c9081e4e077c83aa80',
   chains: [
     mainnet,
     polygon,
