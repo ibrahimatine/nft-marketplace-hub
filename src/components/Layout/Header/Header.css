@@ -19,6 +19,7 @@
   font-weight: bold;
   cursor: pointer;
   transition: transform var(--transition-base);
+  text-decoration: none;
 }
 
 .header-logo:hover {
@@ -61,6 +62,8 @@
   background: transparent;
   padding: var(--spacing-sm);
   color: var(--color-text);
+  border: none;
+  cursor: pointer;
 }
 
 @media (min-width: 768px) {
@@ -102,6 +105,8 @@
   background: transparent;
   padding: var(--spacing-sm);
   color: var(--color-text);
+  border: none;
+  cursor: pointer;
 }
 
 .mobile-menu-nav {
@@ -134,28 +139,167 @@
   border-top: 1px solid var(--color-border);
 }
 
+/* Wallet Button Amélioré */
+.wallet-button {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  background: linear-gradient(135deg, var(--color-accent) 0%, #5634A3 100%);
+  color: var(--color-white);
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-base);
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(107, 70, 193, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.wallet-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left 0.5s;
+}
+
+.wallet-button:hover::before {
+  left: 100%;
+}
+
+.wallet-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(107, 70, 193, 0.4);
+}
+
+.wallet-button-connected {
+  background: linear-gradient(135deg, var(--color-success) 0%, #059669 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.wallet-button-connected:hover {
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+
+.wallet-connected {
+  position: relative;
+}
+
+.wallet-dropdown {
+  position: absolute;
+  top: calc(100% + var(--spacing-sm));
+  right: 0;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  min-width: 280px;
+  z-index: var(--z-dropdown);
+  animation: slideDown 0.2s ease-out;
+  overflow: hidden;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .wallet-info {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-lg) var(--spacing-md);
+  background: linear-gradient(135deg, var(--color-bg-light) 0%, var(--color-white) 100%);
   border-bottom: 1px solid var(--color-border);
 }
 
 .wallet-address-full {
-  font-family: monospace;
-  font-size: var(--font-size-xs);
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-size: var(--font-size-sm);
   color: var(--color-text);
   word-break: break-all;
+  background: var(--color-white);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
 }
 
 .wallet-network {
   font-size: var(--font-size-xs);
-  color: var(--color-text-light);
-  margin-top: var(--spacing-xs);
+  color: var(--color-success);
+  margin-top: var(--spacing-sm);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.wallet-network::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--color-success);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.wallet-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  padding: var(--spacing-md);
+  background: none;
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  transition: all var(--transition-fast);
+  border: none;
+  cursor: pointer;
+}
+
+.wallet-dropdown-item:hover {
+  background: var(--color-bg-light);
+  color: var(--color-accent);
 }
 
 .wallet-dropdown-item.disconnect {
   color: var(--color-error);
+  border-top: 1px solid var(--color-border);
 }
 
 .wallet-dropdown-item.disconnect:hover {
-  background-color: rgba(239, 68, 68, 0.1);
+  background: rgba(239, 68, 68, 0.05);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .wallet-dropdown {
+    min-width: 260px;
+    right: -20px;
+  }
+  
+  .wallet-button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .mobile-menu-wallet .wallet-button {
+    margin-bottom: var(--spacing-md);
+  }
 }

@@ -103,9 +103,21 @@ const AppProvider = ({ children }) => {
     }
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
     setWalletAddress('');
     setIsWalletConnected(false);
+    
+    // Optionnel : Demander à MetaMask de supprimer la permission
+    try {
+      await window.ethereum.request({
+        method: 'wallet_revokePermissions',
+        params: [{ eth_accounts: {} }]
+      });
+    } catch (error) {
+      // Ne pas bloquer si cette méthode n'est pas supportée
+      console.log('Révocation des permissions non supportée');
+    }
+    
     console.log('Wallet déconnecté');
   };
 
