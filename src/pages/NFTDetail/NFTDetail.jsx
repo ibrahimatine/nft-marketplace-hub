@@ -17,7 +17,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useAppContext } from '../../App';
-import { mockNFTs } from '../../data/mockData';
+import { getNFTDetails } from '../../utils/contract';
 
 const NFTDetail = () => {
   const { id } = useParams();
@@ -33,12 +33,30 @@ const NFTDetail = () => {
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
 
   // Récupérer le NFT par ID
-  useEffect(() => {
-    const nftId = parseInt(id);
-    // Essayer d'abord le selectedNFT du contexte, sinon chercher dans mockNFTs
-    const foundNFT = selectedNFT?.id === nftId ? selectedNFT : mockNFTs.find(n => n.id === nftId);
-    setNft(foundNFT || null);
-  }, [id, selectedNFT]);
+useEffect(() => {
+  const loadNFTDetails = async () => {
+    if (!id) return;
+    
+    try {
+      const nftId = parseInt(id);
+      // Essayer d'abord le selectedNFT du contexte
+      if (selectedNFT?.id === nftId) {
+        setNft(selectedNFT);
+        return;
+      }
+      
+      // Sinon, charger depuis le contrat
+      const nftDetails = await getNFTDetails(nftId);
+      setNft(nftDetails);
+      
+    } catch (error) {
+      console.error('Erreur chargement NFT:', error);
+      setNft(null);
+    }
+  };
+  
+  loadNFTDetails();
+}, [id, selectedNFT]);
 
   // Loading state
   if (!nft) {

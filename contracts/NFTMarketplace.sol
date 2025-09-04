@@ -16,6 +16,11 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
 
     mapping(uint256 => MarketItem) private idToMarketItem;
 
+    mapping(uint256 => address) private tokenCreators;
+
+
+    
+
     struct MarketItem {
         uint256 tokenId;
         address payable seller;
@@ -33,8 +38,28 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
         bool sold
     );
 
+    event MarketItemSold(
+        uint256 indexed tokenId,
+        address seller,
+        address buyer,
+        uint256 price
+    );
+
     constructor() ERC721("NFT Marketplace", "NFTM") {
         owner = payable(msg.sender);
+    }
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only marketplace owner can call this");
+        _;
+    }
+
+    function updateListingPrice(uint _listingPrice) public onlyOwner {
+        listingPrice = _listingPrice;
+    }
+
+    function getListingPrice() public view returns (uint256) {
+        return listingPrice;
     }
 
     function createToken(string memory tokenURI, uint256 price) public payable returns (uint) {
@@ -43,17 +68,35 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
 
         _mint(msg.sender, newTokenId);
         _setTokenURI(newTokenId, tokenURI);
+
+        tokenCreators[newTokenId] = msg.sender;
+
         
         if (price > 0) {
             createMarketItem(newTokenId, price);
+        } else {
+            // Si pas de prix, créer comme item possédé
+            idToMarketItem[newTokenId] = MarketItem(
+                newTokenId,
+                payable(address(0)),
+                payable(msg.sender),
+                0,
+                false,
+                false
+            );
         }
         
         return newTokenId;
     }
 
+    function getTokenCreator(uint256 tokenId) public view returns (address) {
+    return tokenCreators[tokenId];
+        }
+
     function createMarketItem(uint256 tokenId, uint256 price) public payable nonReentrant {
-        require(price > 0, "Price must be greater than 0");
-        require(msg.value == listingPrice, "Price must equal listing price");
+        require(price > 0, "Price must be at least 1 wei");
+        require(msg.value == listingPrice, "Price must be equal to listing price");
+        require(ownerOf(tokenId) == msg.sender, "Only token owner can list");
 
         idToMarketItem[tokenId] = MarketItem(
             tokenId,
@@ -66,7 +109,33 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
 
         _transfer(msg.sender, address(this), tokenId);
         
-        emit MarketItemCreated(tokenId, msg.sender, address(this), price, false);
+        emit MarketItemCreated(
+            tokenId,
+            msg.sender,
+            address(this),
+            price,
+            false
+        );
+    }
+
+    function createMarketSale(uint256 tokenId) public payable nonReentrant {
+        uint price = idToMarketItem[tokenId].price;
+        address seller = idToMarketItem[tokenId].seller;
+        
+        require(msg.value == price, "Please submit the asking price");
+        require(idToMarketItem[tokenId].listed, "Item not listed for sale");
+        require(!idToMarketItem[tokenId].sold, "Item already sold");
+
+        idToMarketItem[tokenId].owner = payable(msg.sender);
+        idToMarketItem[tokenId].sold = true;
+        idToMarketItem[tokenId].listed = false;
+        _itemsSold.increment();
+
+        _transfer(address(this), msg.sender, tokenId);
+        payable(owner).transfer(listingPrice);
+        payable(seller).transfer(msg.value);
+
+        emit MarketItemSold(tokenId, seller, msg.sender, price);
     }
 
     function fetchMarketItems() public view returns (MarketItem[] memory) {
@@ -84,5 +153,67 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
             }
         }
         return items;
+    }
+
+    function fetchMyNFTs() public view returns (MarketItem[] memory) {
+        uint totalItemCount = _tokenIds.current();
+        uint itemCount = 0;
+        uint currentIndex = 0;
+
+        for (uint i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].owner == msg.sender) {
+                itemCount += 1;
+            }
+        }
+
+        MarketItem[] memory items = new MarketItem[](itemCount);
+        for (uint i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].owner == msg.sender) {
+                uint currentId = i + 1;
+                MarketItem storage currentItem = idToMarketItem[currentId];
+                items[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+        return items;
+    }
+
+    function fetchItemsListed() public view returns (MarketItem[] memory) {
+        uint totalItemCount = _tokenIds.current();
+        uint itemCount = 0;
+        uint currentIndex = 0;
+
+        for (uint i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].seller == msg.sender) {
+                itemCount += 1;
+            }
+        }
+
+        MarketItem[] memory items = new MarketItem[](itemCount);
+        for (uint i = 0; i < totalItemCount; i++) {
+            if (idToMarketItem[i + 1].seller == msg.sender) {
+                uint currentId = i + 1;
+                MarketItem storage currentItem = idToMarketItem[currentId];
+                items[currentIndex] = currentItem;
+                currentIndex += 1;
+            }
+        }
+        return items;
+    }
+
+    function getMarketItem(uint256 tokenId) public view returns (MarketItem memory) {
+        return idToMarketItem[tokenId];
+    }
+
+    function withdrawListingItem(uint256 tokenId) public nonReentrant {
+        require(idToMarketItem[tokenId].seller == msg.sender, "Only seller can withdraw");
+        require(idToMarketItem[tokenId].listed, "Item not listed");
+        require(!idToMarketItem[tokenId].sold, "Item already sold");
+
+        idToMarketItem[tokenId].listed = false;
+        idToMarketItem[tokenId].owner = payable(msg.sender);
+        idToMarketItem[tokenId].seller = payable(address(0));
+
+        _transfer(address(this), msg.sender, tokenId);
     }
 }
