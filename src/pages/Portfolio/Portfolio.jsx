@@ -15,10 +15,15 @@ import {
   Tag,
   Eye,
   EyeOff,
-  RefreshCw
+  RefreshCw,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import { useAppContext } from '../../App';
 import { fetchUserNFTs, fetchUserListedNFTs, withdrawNFT } from '../../utils/contract';
+import { getSubmittedNFTs, removeSubmittedNFT } from '../../utils/storage';
 
 const Portfolio = () => {
   const navigate = useNavigate();
@@ -32,10 +37,12 @@ const Portfolio = () => {
     totalValue: 0,
     totalNFTs: 0,
     onSaleCount: 0,
-    createdCount: 0
+    createdCount: 0,
+    submittedCount: 0
   });
   const [ownedNFTs, setOwnedNFTs] = useState([]);
   const [onSaleNFTs, setOnSaleNFTs] = useState([]);
+  const [submittedNFTs, setSubmittedNFTs] = useState([]);
   const [error, setError] = useState('');
 
   // Charger les données à la connexion
@@ -52,25 +59,39 @@ const Portfolio = () => {
     try {
       console.log('Chargement des NFTs pour:', walletAddress);
       
-      // Charger les NFTs possédés et listés en parallèle
+      // 1. Charger les NFTs de localStorage
+      const localNFTs = getSubmittedNFTs();
+      setSubmittedNFTs(localNFTs);
+      
+      // 2. Charger les NFTs de la blockchain
       const [ownedData, listedData] = await Promise.all([
-        fetchUserNFTs(walletAddress),
-        fetchUserListedNFTs()
+        fetchUserNFTs(walletAddress).catch(err => {
+          console.warn('Erreur blockchain NFTs possédés:', err);
+          return [];
+        }),
+        fetchUserListedNFTs().catch(err => {
+          console.warn('Erreur blockchain NFTs listés:', err);
+          return [];
+        })
       ]);
 
-      console.log('NFTs possédés:', ownedData);
-      console.log('NFTs listés:', listedData);
+      console.log('NFTs possédés (blockchain):', ownedData);
+      console.log('NFTs listés (blockchain):', listedData);
+      console.log('NFTs soumis (localStorage):', localNFTs);
 
       setOwnedNFTs(ownedData);
       setOnSaleNFTs(listedData);
 
-      // Calculer les statistiques
+      // 3. Calculer les statistiques
       const totalValue = ownedData.reduce((sum, nft) => sum + nft.price, 0);
+      const submittedValue = localNFTs.reduce((sum, nft) => sum + (nft.price || 0), 0);
+      
       setPortfolioStats({
-        totalValue: totalValue.toFixed(4),
-        totalNFTs: ownedData.length,
-        onSaleCount: listedData.length,
-        createdCount: ownedData.filter(nft => nft.seller === walletAddress).length
+        totalValue: (totalValue + submittedValue).toFixed(4),
+        totalNFTs: ownedData.length + localNFTs.length,
+        onSaleCount: listedData.length + localNFTs.filter(nft => nft.forSale).length,
+        createdCount: ownedData.filter(nft => nft.seller === walletAddress).length,
+        submittedCount: localNFTs.length
       });
 
     } catch (error) {
@@ -83,7 +104,12 @@ const Portfolio = () => {
 
   const handleNFTClick = (nft) => {
     setSelectedNFT(nft);
-    navigate(`/nft/${nft.id}`);
+    if (nft.status === 'submitted') {
+      // Pour les NFTs locaux, afficher une page spéciale ou les détails locaux
+      navigate(`/nft/local-${nft.id}`);
+    } else {
+      navigate(`/nft/${nft.id}`);
+    }
   };
 
   const handleWithdrawNFT = async (tokenId) => {
@@ -103,17 +129,31 @@ const Portfolio = () => {
     }
   };
 
+  const handleDeleteSubmittedNFT = (nftId) => {
+    if (window.confirm('Voulez-vous vraiment supprimer ce NFT de votre collection locale ?')) {
+      removeSubmittedNFT(nftId);
+      loadPortfolioData(); // Recharger pour mettre à jour l'affichage
+    }
+  };
+
   const getCurrentNFTs = () => {
     switch(activeTab) {
       case 'owned':
-        return ownedNFTs;
+        // Combiner NFTs blockchain + locaux
+        return [...ownedNFTs, ...submittedNFTs];
       case 'created':
-        // Les NFTs créés sont ceux où seller === walletAddress
-        return ownedNFTs.filter(nft => nft.seller === walletAddress);
+        // NFTs créés = blockchain créés + tous les soumis locaux
+        const blockchainCreated = ownedNFTs.filter(nft => nft.seller === walletAddress);
+        return [...blockchainCreated, ...submittedNFTs];
       case 'onsale':
-        return onSaleNFTs;
+        // NFTs en vente = blockchain listés + locaux marqués forSale
+        const localForSale = submittedNFTs.filter(nft => nft.forSale);
+        return [...onSaleNFTs, ...localForSale];
+      case 'submitted':
+        // Nouveaux onglet pour les NFTs locaux uniquement
+        return submittedNFTs;
       default:
-        return ownedNFTs;
+        return [...ownedNFTs, ...submittedNFTs];
     }
   };
 
@@ -133,6 +173,11 @@ const Portfolio = () => {
         icon: <Tag size={48} />,
         title: "Aucun NFT en vente",
         description: "Mettez vos NFTs en vente pour les voir apparaître ici"
+      },
+      submitted: {
+        icon: <Clock size={48} />,
+        title: "Aucun NFT soumis",
+        description: "Vos NFTs créés localement apparaîtront ici"
       }
     };
 
@@ -145,9 +190,9 @@ const Portfolio = () => {
         <p>{message.description}</p>
         <button 
           className="btn btn-primary"
-          onClick={() => navigate(type === 'created' ? '/submit' : '/explore')}
+          onClick={() => navigate(type === 'created' || type === 'submitted' ? '/submit' : '/explore')}
         >
-          {type === 'created' ? 'Créer un NFT' : 'Explorer le marketplace'}
+          {type === 'created' || type === 'submitted' ? 'Créer un NFT' : 'Explorer le marketplace'}
         </button>
       </div>
     );
@@ -222,6 +267,16 @@ const Portfolio = () => {
                 <div className="stat-label">Créés</div>
               </div>
             </div>
+
+            <div className="stat-card">
+              <div className="stat-icon">
+                <Clock />
+              </div>
+              <div className="stat-content">
+                <div className="stat-value">{portfolioStats.submittedCount}</div>
+                <div className="stat-label">Soumis</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -241,21 +296,28 @@ const Portfolio = () => {
               onClick={() => setActiveTab('owned')}
             >
               <Package size={18} />
-              Possédés ({ownedNFTs.length})
+              Tous ({portfolioStats.totalNFTs})
             </button>
             <button 
               className={`tab ${activeTab === 'created' ? 'active' : ''}`}
               onClick={() => setActiveTab('created')}
             >
               <Brush size={18} />
-              Créés ({portfolioStats.createdCount})
+              Créés ({portfolioStats.createdCount + portfolioStats.submittedCount})
             </button>
             <button 
               className={`tab ${activeTab === 'onsale' ? 'active' : ''}`}
               onClick={() => setActiveTab('onsale')}
             >
               <Tag size={18} />
-              En vente ({onSaleNFTs.length})
+              En vente ({portfolioStats.onSaleCount})
+            </button>
+            <button 
+              className={`tab ${activeTab === 'submitted' ? 'active' : ''}`}
+              onClick={() => setActiveTab('submitted')}
+            >
+              <Clock size={18} />
+              Locaux ({portfolioStats.submittedCount})
             </button>
           </div>
 
@@ -298,12 +360,38 @@ const Portfolio = () => {
           {!loading && currentNFTs.length > 0 ? (
             <div className={`nfts-container ${viewMode === 'grid' ? 'grid-view' : 'list-view'}`}>
               {currentNFTs.map(nft => (
-                <div key={nft.id} className="portfolio-nft-wrapper">
+                <div key={`${nft.status || 'blockchain'}-${nft.id}`} className="portfolio-nft-wrapper">
                   <NFTCard 
                     nft={nft}
                     onClick={handleNFTClick}
                   />
-                  {activeTab === 'owned' && !nft.forSale && (
+                  
+                  {/* Badge pour indiquer le statut */}
+                  {nft.status === 'submitted' && (
+                    <div className="nft-status-badge">
+                      {nft.blockchainStatus === 'pending' && (
+                        <span className="status-pending">
+                          <Clock size={14} />
+                          Local
+                        </span>
+                      )}
+                      {nft.blockchainStatus === 'minted' && (
+                        <span className="status-minted">
+                          <CheckCircle size={14} />
+                          Blockchain
+                        </span>
+                      )}
+                      {nft.blockchainStatus === 'failed' && (
+                        <span className="status-failed">
+                          <AlertTriangle size={14} />
+                          Erreur
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Actions pour NFTs possédés non en vente */}
+                  {activeTab === 'owned' && !nft.forSale && nft.status !== 'submitted' && (
                     <button 
                       className="quick-action-btn"
                       onClick={(e) => {
@@ -315,7 +403,9 @@ const Portfolio = () => {
                       Mettre en vente
                     </button>
                   )}
-                  {activeTab === 'onsale' && (
+                  
+                  {/* Actions pour NFTs en vente blockchain */}
+                  {activeTab === 'onsale' && nft.status !== 'submitted' && (
                     <div className="sale-info">
                       <span className="sale-price">
                         Prix: {showValues ? `${nft.price} ETH` : '•••'}
@@ -329,6 +419,32 @@ const Portfolio = () => {
                         disabled={loading}
                       >
                         Retirer
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Actions pour NFTs soumis localement */}
+                  {nft.status === 'submitted' && (
+                    <div className="local-nft-actions">
+                      <button 
+                        className="quick-action-btn edit-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNFTClick(nft);
+                        }}
+                      >
+                        <Eye size={16} />
+                        Voir
+                      </button>
+                      <button 
+                        className="quick-action-btn delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSubmittedNFT(nft.id);
+                        }}
+                      >
+                        <X size={16} />
+                        Supprimer
                       </button>
                     </div>
                   )}
@@ -362,11 +478,12 @@ const Portfolio = () => {
               <button 
                 className="action-btn"
                 onClick={() => {
-                  if (ownedNFTs.length > 0 && !ownedNFTs[0].forSale) {
-                    handleNFTClick(ownedNFTs[0]);
+                  const availableNFTs = [...ownedNFTs, ...submittedNFTs].filter(nft => !nft.forSale);
+                  if (availableNFTs.length > 0) {
+                    handleNFTClick(availableNFTs[0]);
                   }
                 }}
-                disabled={ownedNFTs.length === 0 || ownedNFTs.filter(nft => !nft.forSale).length === 0}
+                disabled={[...ownedNFTs, ...submittedNFTs].filter(nft => !nft.forSale).length === 0}
               >
                 <Tag />
                 <span>Vendre un NFT</span>
@@ -381,6 +498,22 @@ const Portfolio = () => {
               </button>
             </div>
           </div>
+          
+          {/* Informations sur le stockage local */}
+          {submittedNFTs.length > 0 && (
+            <div className="storage-info">
+              <h4>Stockage local</h4>
+              <p>
+                Vous avez {submittedNFTs.length} NFT(s) sauvegardé(s) localement. 
+                Ces NFTs sont visibles uniquement sur cet appareil.
+              </p>
+              <div className="storage-stats">
+                <span>Mintés: {submittedNFTs.filter(nft => nft.blockchainStatus === 'minted').length}</span>
+                <span>En attente: {submittedNFTs.filter(nft => nft.blockchainStatus === 'pending').length}</span>
+                <span>Échec: {submittedNFTs.filter(nft => nft.blockchainStatus === 'failed').length}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
