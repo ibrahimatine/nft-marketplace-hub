@@ -134,8 +134,7 @@ const handleMigrateToBlockchain = async () => {
       name: nft.name,
       description: nft.description,
       category: nft.category,
-      attributes: nft.attributes,
-      image: `https://picsum.photos/400/400?random=${Date.now()}`
+      image: nft.image // Utiliser la vraie image du NFT
     };
     
     const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
@@ -281,7 +280,11 @@ const handleMigrateToBlockchain = async () => {
           {/* Image */}
           <div className="detail-image-section">
             <div className="image-container">
-              <img src={nft.image} alt={nft.name} className="nft-image" />
+              <img
+                src={nft.image || 'https://via.placeholder.com/400x400/e5e7eb/9ca3af?text=No+Image'}
+                alt={nft.name}
+                className="nft-image"
+              />
               {nft.forSale && !isOwner && (
                 <div className="sale-badge">
                   <ShoppingCart size={16} />

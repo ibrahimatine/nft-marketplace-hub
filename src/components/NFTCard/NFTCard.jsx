@@ -47,7 +47,11 @@ const NFTCard = ({ nft, badge, onClick }) => {
       style={{ cursor: onClick ? 'pointer' : 'default' }}
     >
       <div className="nft-card-image-container">
-        <img src={nft.image} alt={nft.name} className="nft-card-image" />
+        <img
+          src={nft.image || 'https://via.placeholder.com/400x400/e5e7eb/9ca3af?text=No+Image'}
+          alt={nft.name}
+          className="nft-card-image"
+        />
         {renderBadge()}
         
         <div className="nft-card-overlay">

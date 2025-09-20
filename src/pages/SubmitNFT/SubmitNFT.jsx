@@ -8,8 +8,6 @@ import {
   AlertCircle, 
   CheckCircle,
   Loader,
-  Plus,
-  Trash2,
   Eye,
   ArrowLeft
 } from 'lucide-react';
@@ -36,12 +34,10 @@ const SubmitNFT = () => {
     price: '',
     forSale: false,
     image: null,
-    imagePreview: null,
-    attributes: []
+    imagePreview: null
   });
   
   const [errors, setErrors] = useState({});
-  const [newAttribute, setNewAttribute] = useState({ trait_type: '', value: '' });
   
   // Redirect if not connected
   useEffect(() => {
@@ -112,24 +108,6 @@ const SubmitNFT = () => {
     }
   };
   
-  // Add attribute
-  const addAttribute = () => {
-    if (newAttribute.trait_type && newAttribute.value) {
-      setFormData(prev => ({
-        ...prev,
-        attributes: [...prev.attributes, { ...newAttribute, id: Date.now() }]
-      }));
-      setNewAttribute({ trait_type: '', value: '' });
-    }
-  };
-  
-  // Remove attribute
-  const removeAttribute = (id) => {
-    setFormData(prev => ({
-      ...prev,
-      attributes: prev.attributes.filter(attr => attr.id !== id)
-    }));
-  };
   
   // Validate form
   const validateForm = () => {
@@ -177,7 +155,6 @@ const handleSubmit = async (e) => {
       price: formData.forSale ? parseFloat(formData.price) : 0,
       forSale: formData.forSale,
       image: formData.imageDataUrl,
-      attributes: formData.attributes,
       likes: 0,
       views: 0,
       owner: 'Vous',
@@ -189,6 +166,7 @@ const handleSubmit = async (e) => {
     
     const savedNFT = saveSubmittedNFT(nftData);
     console.log('NFT sauvegardé localement:', savedNFT);
+    console.log('Image sauvegardée (preview):', formData.imageDataUrl?.substring(0, 50) + '...');
     
     // 2. Option pour activer/désactiver la blockchain
     const ENABLE_BLOCKCHAIN = false; // Mettez à true quand votre contrat sera prêt
@@ -207,7 +185,6 @@ const handleSubmit = async (e) => {
           name: formData.name,
           description: formData.description,
           category: formData.category,
-          attributes: formData.attributes,
           image: formData.imageDataUrl
         };
         
@@ -493,53 +470,6 @@ const handleSubmit = async (e) => {
       )}
       </div>
     )}
-    
-    {/* Attributes Section */}
-    <div className="attributes-section">
-    <h4>Propriétés (optionnel)</h4>
-    <p>Ajoutez des attributs pour rendre votre NFT plus unique</p>
-    
-    <div className="attribute-input">
-    <input
-    type="text"
-    placeholder="Type (ex: Couleur)"
-    value={newAttribute.trait_type}
-    onChange={(e) => setNewAttribute(prev => ({ ...prev, trait_type: e.target.value }))}
-    />
-    <input
-    type="text"
-    placeholder="Valeur (ex: Bleu)"
-    value={newAttribute.value}
-    onChange={(e) => setNewAttribute(prev => ({ ...prev, value: e.target.value }))}
-    />
-    <button
-    type="button"
-    className="btn btn-secondary btn-small"
-    onClick={addAttribute}
-    disabled={!newAttribute.trait_type || !newAttribute.value}
-    >
-    <Plus size={16} />
-    </button>
-    </div>
-    
-    {formData.attributes.length > 0 && (
-      <div className="attributes-list">
-      {formData.attributes.map(attr => (
-        <div key={attr.id} className="attribute-tag">
-        <span className="attr-type">{attr.trait_type}</span>
-        <span className="attr-value">{attr.value}</span>
-        <button
-        type="button"
-        onClick={() => removeAttribute(attr.id)}
-        className="remove-attr"
-        >
-        <X size={14} />
-        </button>
-        </div>
-      ))}
-      </div>
-    )}
-    </div>
     </div>
     </div>
     

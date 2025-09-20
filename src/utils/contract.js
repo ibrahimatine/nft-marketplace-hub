@@ -80,7 +80,7 @@ const processMarketItem = async (contract, item) => {
             metadata = {
                 name: `NFT #${tokenId}`,
                 description: "NFT créé sur votre marketplace",
-                image: `https://picsum.photos/400/400?random=${tokenId}`
+                image: null // Ne pas forcer une image par défaut
             };
         }
         
@@ -89,14 +89,13 @@ const processMarketItem = async (contract, item) => {
             tokenId: tokenId,
             name: metadata.name || `NFT #${tokenId}`,
             description: metadata.description || "",
-            image: metadata.image || `https://picsum.photos/400/400?random=${tokenId}`,
+            image: metadata.image,
             price: parseFloat(ethers.utils.formatEther(item.price || 0)),
             owner: item.owner || 'Inconnu',
             seller: item.seller || 'Inconnu',
             sold: item.sold || false,
             forSale: item.listed || false,
             category: metadata.category || "Digital Art",
-            attributes: metadata.attributes || [],
             likes: Math.floor(Math.random() * 100),
             views: Math.floor(Math.random() * 1000),
             createdAt: new Date().toISOString().split('T')[0]
@@ -303,7 +302,7 @@ export const getNFTDetails = async (tokenId) => {
             metadata = {
                 name: `NFT #${tokenId}`,
                 description: "NFT créé sur votre marketplace",
-                image: `https://picsum.photos/400/400?random=${tokenId}`
+                image: null // Ne pas forcer une image par défaut
             };
         }
         
@@ -312,7 +311,7 @@ export const getNFTDetails = async (tokenId) => {
             tokenId: parseInt(tokenId),
             name: metadata.name || `NFT #${tokenId}`,
             description: metadata.description || "",
-            image: metadata.image || `https://picsum.photos/400/400?random=${tokenId}`,
+            image: metadata.image,
             price: marketItem ? parseFloat(ethers.utils.formatEther(marketItem.price)) : 0,
             owner: marketItem ? marketItem.owner : creator,
             seller: marketItem ? marketItem.seller : null,
@@ -320,7 +319,6 @@ export const getNFTDetails = async (tokenId) => {
             sold: marketItem ? marketItem.sold : false,
             forSale: marketItem ? marketItem.listed : false,
             category: metadata.category || "Digital Art",
-            attributes: metadata.attributes || [],
             likes: Math.floor(Math.random() * 100),
             views: Math.floor(Math.random() * 1000),
             createdAt: new Date().toISOString().split('T')[0],
