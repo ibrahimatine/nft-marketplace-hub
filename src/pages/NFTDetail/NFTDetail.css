@@ -162,6 +162,29 @@
   margin: 0;
 }
 
+.token-id-display {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-md) 0;
+}
+
+.token-id-label {
+  font-size: var(--font-size-base);
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+
+.token-id-value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-accent);
+  background-color: var(--color-bg-light);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-accent);
+}
+
 .ownership-info {
   display: flex;
   gap: var(--spacing-2xl);

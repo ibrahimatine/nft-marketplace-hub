@@ -296,7 +296,12 @@ const handleMigrateToBlockchain = async () => {
             <div className="info-header">
               <div className="category-tag">{nft.category}</div>
               <h1 className="nft-title">{nft.name}</h1>
-              
+
+              <div className="token-id-display">
+                <span className="token-id-label">Token ID:</span>
+                <span className="token-id-value">#{nft.tokenId || nft.id || 'N/A'}</span>
+              </div>
+
               <div className="ownership-info">
                 <div className="owner-item">
                   <span className="label">Propriétaire</span>

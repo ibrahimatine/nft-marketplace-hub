@@ -68,7 +68,10 @@ const NFTCard = ({ nft, badge, onClick }) => {
           {nft.forSale && <span className="nft-card-sale-badge">En vente</span>}
         </div>
         
-        <p className="nft-card-token">Token ID: {nft.tokenId}</p>
+        <div className="nft-card-token">
+          <span className="token-label">Token ID:</span>
+          <span className="token-value">#{nft.tokenId || nft.id || 'N/A'}</span>
+        </div>
         
         <div className="nft-card-footer">
           <div className="nft-card-price">
