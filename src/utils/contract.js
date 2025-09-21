@@ -16,6 +16,7 @@ const CONTRACT_ABI = [
     "function withdrawListingItem(uint256 tokenId) public",
     "function getTokenCreator(uint256 tokenId) public view returns (address)",
     "function getMarketItem(uint256 tokenId) public view returns (tuple(uint256 tokenId, address seller, address owner, uint256 price, bool sold, bool listed))",
+    "function totalSupply() public view returns (uint256)",
     "event MarketItemCreated(uint256 indexed tokenId, address seller, address owner, uint256 price, bool sold)"
 ];
 
@@ -47,11 +48,40 @@ export const getContractReadOnly = async () => {
 const processMarketItem = async (contract, item) => {
     try {
         const tokenId = item.tokenId.toNumber();
-        
+
         // Vérifier que le tokenId est valide (> 0)
         if (!tokenId || tokenId === 0) {
             console.warn('Token ID invalide:', tokenId);
             return null;
+        }
+
+        // D'abord, vérifier si on a des métadonnées locales pour ce token ID
+        const { getSubmittedNFTs } = await import('../utils/storage');
+        const localNFTs = getSubmittedNFTs();
+        const localNFT = localNFTs.find(nft => nft.tokenId === tokenId.toString() && nft.blockchainStatus === 'minted');
+
+        if (localNFT) {
+            console.log(`Utilisation des métadonnées locales pour token ${tokenId}`);
+            return {
+                id: tokenId,
+                tokenId: tokenId,
+                name: localNFT.name,
+                description: localNFT.description,
+                image: localNFT.image, // Vraie image depuis localStorage
+                price: parseFloat(ethers.utils.formatEther(item.price || 0)),
+                owner: item.owner || 'Inconnu',
+                seller: item.seller || 'Inconnu',
+                sold: item.sold || false,
+                forSale: item.listed || false,
+                category: localNFT.category || "Digital Art",
+                likes: localNFT.likes || 0,
+                views: localNFT.views || 0,
+                createdAt: new Date().toISOString().split('T')[0],
+                // IMPORTANT: Marquer comme NFT blockchain, pas local
+                isLocal: false,
+                source: 'blockchain',
+                blockchainStatus: 'minted'
+            };
         }
 
         // Essayer de récupérer l'URI du token
@@ -96,8 +126,8 @@ const processMarketItem = async (contract, item) => {
             sold: item.sold || false,
             forSale: item.listed || false,
             category: metadata.category || "Digital Art",
-            likes: Math.floor(Math.random() * 100),
-            views: Math.floor(Math.random() * 1000),
+            likes: 0, // Commencer à 0 au lieu de valeurs aléatoires
+            views: 0, // Commencer à 0 au lieu de valeurs aléatoires
             createdAt: new Date().toISOString().split('T')[0]
         };
     } catch (error) {
@@ -270,11 +300,18 @@ export const withdrawNFT = async (tokenId) => {
 export const getNFTDetails = async (tokenId) => {
     try {
         const { contract } = await getContractReadOnly();
-        
+
         // Vérifier que le tokenId est valide
         if (!tokenId || tokenId === 0) {
             throw new Error('Token ID invalide');
         }
+
+        console.log(`getNFTDetails appelé pour token ID: ${tokenId}`);
+
+        // D'abord, vérifier si on a des métadonnées locales pour ce token ID (pour récupérer la vraie image)
+        const { getSubmittedNFTs } = await import('../utils/storage');
+        const localNFTs = getSubmittedNFTs();
+        const localNFT = localNFTs.find(nft => nft.tokenId === tokenId.toString() && nft.blockchainStatus === 'minted');
         
         // Récupérer les données du contrat
         const [marketItem, tokenURI, creator] = await Promise.all([
@@ -309,19 +346,23 @@ export const getNFTDetails = async (tokenId) => {
         return {
             id: tokenId,
             tokenId: parseInt(tokenId),
-            name: metadata.name || `NFT #${tokenId}`,
-            description: metadata.description || "",
-            image: metadata.image,
+            name: localNFT ? localNFT.name : (metadata.name || `NFT #${tokenId}`),
+            description: localNFT ? localNFT.description : (metadata.description || ""),
+            image: localNFT ? localNFT.image : metadata.image, // Utiliser la vraie image si disponible
             price: marketItem ? parseFloat(ethers.utils.formatEther(marketItem.price)) : 0,
             owner: marketItem ? marketItem.owner : creator,
             seller: marketItem ? marketItem.seller : null,
             creator: creator || 'Inconnu',
             sold: marketItem ? marketItem.sold : false,
             forSale: marketItem ? marketItem.listed : false,
-            category: metadata.category || "Digital Art",
-            likes: Math.floor(Math.random() * 100),
-            views: Math.floor(Math.random() * 1000),
+            category: localNFT ? localNFT.category : (metadata.category || "Digital Art"),
+            likes: localNFT ? localNFT.likes || 0 : 0,
+            views: localNFT ? localNFT.views || 0 : 0,
             createdAt: new Date().toISOString().split('T')[0],
+            // IMPORTANT: Marquer explicitement comme NFT blockchain
+            isLocal: false,
+            source: 'blockchain',
+            blockchainStatus: 'minted',
             transfers: [
                 {
                     from: "0x0000000000000000000000000000000000000000",

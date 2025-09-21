@@ -314,8 +314,28 @@
 .success-message p {
   color: var(--color-text-light);
   font-size: var(--font-size-lg);
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: var(--spacing-md);
   max-width: 500px;
+}
+
+.blockchain-success {
+  color: var(--color-success) !important;
+  font-weight: 600;
+}
+
+.transaction-hash {
+  font-family: monospace;
+  font-size: var(--font-size-sm) !important;
+  color: var(--color-accent) !important;
+  background-color: var(--color-bg-light);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  word-break: break-all;
+}
+
+.local-info {
+  color: var(--color-primary) !important;
+  font-weight: 500;
 }
 
 /* Buttons */

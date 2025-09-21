@@ -67,7 +67,7 @@ const NFTDetail = () => {
       // NFT blockchain
       const nftId = parseInt(id);
       if (selectedNFT?.id === nftId) {
-        setNft({...selectedNFT, isLocal: false, source: 'blockchain'});
+        setNft(selectedNFT); // Utiliser directement selectedNFT tel qu'il est
         setLoading(false);
         return;
       }
@@ -75,11 +75,7 @@ const NFTDetail = () => {
       // Charger depuis le contrat
       try {
         const nftDetails = await getNFTDetails(nftId);
-        setNft({
-          ...nftDetails,
-          isLocal: false,
-          source: 'blockchain'
-        });
+        setNft(nftDetails); // Utiliser directement les données retournées par getNFTDetails
       } catch (contractError) {
         setError(`NFT #${nftId} non trouvé.`);
       }
@@ -94,9 +90,10 @@ const NFTDetail = () => {
 
   // Calculer si l'utilisateur est propriétaire
   const isOwner = isWalletConnected && (
-    nft?.isLocal || // Tout NFT local appartient à l'utilisateur connecté
+    id.startsWith('local-') || // Tout NFT local appartient à l'utilisateur connecté
     (walletAddress && nft?.owner && walletAddress.toLowerCase() === nft.owner.toLowerCase()) ||
-    (walletAddress && nft?.creator && walletAddress.toLowerCase() === nft.creator.toLowerCase())
+    (walletAddress && nft?.creator && walletAddress.toLowerCase() === nft.creator.toLowerCase()) ||
+    (walletAddress && nft?.seller && walletAddress.toLowerCase() === nft.seller.toLowerCase()) // Ajout: si vous êtes le vendeur
   );
 
   // Migrer vers la blockchain
@@ -330,7 +327,8 @@ const handleMigrateToBlockchain = async () => {
 
               {/* Actions selon le type de NFT et propriétaire */}
               <div className="action-buttons">
-                {nft.isLocal ? (
+                {/* Logique simplifiée: si l'URL contient 'local-', c'est un NFT local */}
+                {id.startsWith('local-') ? (
                   // NFT LOCAL
                   <div className="local-actions">
                     <p className="local-info">

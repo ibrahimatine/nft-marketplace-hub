@@ -85,7 +85,7 @@ const Portfolio = () => {
       // 3. Calculer les statistiques
       const totalValue = ownedData.reduce((sum, nft) => sum + nft.price, 0);
       const submittedValue = localNFTs.reduce((sum, nft) => sum + (nft.price || 0), 0);
-      
+
       setPortfolioStats({
         totalValue: (totalValue + submittedValue).toFixed(4),
         totalNFTs: ownedData.length + localNFTs.length,
@@ -104,10 +104,16 @@ const Portfolio = () => {
 
   const handleNFTClick = (nft) => {
     setSelectedNFT(nft);
-    if (nft.status === 'submitted') {
-      // Pour les NFTs locaux, afficher une page spéciale ou les détails locaux
+
+    // Navigation intelligente basée sur le statut blockchain
+    if (nft.source === 'blockchain' || nft.blockchainStatus === 'minted' || (nft.tokenId && nft.tokenId !== 'nouveau')) {
+      // NFT sur la blockchain - utiliser tokenId ou id
+      navigate(`/nft/${nft.tokenId || nft.id}`);
+    } else if (nft.status === 'submitted') {
+      // NFT vraiment local
       navigate(`/nft/local-${nft.id}`);
     } else {
+      // Fallback
       navigate(`/nft/${nft.id}`);
     }
   };
