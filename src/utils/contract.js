@@ -11,6 +11,7 @@ const CONTRACT_ABI = [
     "function fetchItemsListed() public view returns (tuple(uint256 tokenId, address seller, address owner, uint256 price, bool sold, bool listed)[])",
     "function tokenURI(uint256 tokenId) public view returns (string)",
     "function createToken(string memory tokenURI, uint256 price) public payable returns (uint)",
+    "function createMarketItem(uint256 tokenId, uint256 price) public payable",
     "function createMarketSale(uint256 tokenId) public payable",
     "function getListingPrice() public view returns (uint256)",
     "function withdrawListingItem(uint256 tokenId) public",
