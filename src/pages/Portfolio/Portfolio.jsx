@@ -55,15 +55,15 @@ const Portfolio = () => {
   const loadPortfolioData = async () => {
     setLoading(true);
     setError('');
-    
+
     try {
       console.log('Chargement des NFTs pour:', walletAddress);
-      
+
       // 1. Charger les NFTs de localStorage
       const localNFTs = getSubmittedNFTs();
       setSubmittedNFTs(localNFTs);
-      
-      // 2. Charger les NFTs de la blockchain
+
+      // 2. Charger les NFTs de la blockchain - RÉACTIVÉ
       const [ownedData, listedData] = await Promise.all([
         fetchUserNFTs(walletAddress).catch(err => {
           console.warn('Erreur blockchain NFTs possédés:', err);
@@ -82,7 +82,7 @@ const Portfolio = () => {
       setOwnedNFTs(ownedData);
       setOnSaleNFTs(listedData);
 
-      // 3. Calculer les statistiques
+      // 3. Calculer les statistiques (localStorage uniquement)
       const totalValue = ownedData.reduce((sum, nft) => sum + nft.price, 0);
       const submittedValue = localNFTs.reduce((sum, nft) => sum + (nft.price || 0), 0);
 
@@ -105,16 +105,22 @@ const Portfolio = () => {
   const handleNFTClick = (nft) => {
     setSelectedNFT(nft);
 
-    // Navigation intelligente basée sur le statut blockchain
-    if (nft.source === 'blockchain' || nft.blockchainStatus === 'minted' || (nft.tokenId && nft.tokenId !== 'nouveau')) {
-      // NFT sur la blockchain - utiliser tokenId ou id
-      navigate(`/nft/${nft.tokenId || nft.id}`);
-    } else if (nft.status === 'submitted') {
-      // NFT vraiment local
+    console.log('=== DEBUG NAVIGATION PORTFOLIO ===');
+    console.log('NFT cliqué:', nft);
+    console.log('status:', nft.status);
+    console.log('blockchainStatus:', nft.blockchainStatus);
+    console.log('source:', nft.source);
+
+    // Logique simplifiée : NFT local = status 'submitted' ET PAS encore sur blockchain
+    if (nft.status === 'submitted' && nft.blockchainStatus !== 'minted') {
+      // NFT vraiment local - pas encore migré
+      console.log('Navigation locale vers:', `/nft/local-${nft.id}`);
       navigate(`/nft/local-${nft.id}`);
     } else {
-      // Fallback
-      navigate(`/nft/${nft.id}`);
+      // NFT blockchain (ou migré) - utiliser tokenId si disponible
+      const targetId = nft.tokenId || nft.id;
+      console.log('Navigation blockchain vers:', `/nft/${targetId}`);
+      navigate(`/nft/${targetId}`);
     }
   };
 
@@ -122,10 +128,10 @@ const Portfolio = () => {
     try {
       setLoading(true);
       await withdrawNFT(tokenId);
-      
+
       // Recharger les données après retrait
       await loadPortfolioData();
-      
+
       alert('NFT retiré de la vente avec succès !');
     } catch (error) {
       console.error('Erreur retrait NFT:', error);

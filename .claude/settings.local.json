@@ -10,7 +10,8 @@
       "Bash(netstat:*)",
       "Bash(taskkill:*)",
       "Bash(grep:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(cmd //c:*)"
     ],
     "deny": [],
     "ask": []

@@ -56,33 +56,17 @@ const processMarketItem = async (contract, item) => {
             return null;
         }
 
-        // D'abord, vérifier si on a des métadonnées locales pour ce token ID
-        const { getSubmittedNFTs } = await import('../utils/storage');
-        const localNFTs = getSubmittedNFTs();
-        const localNFT = localNFTs.find(nft => nft.tokenId === tokenId.toString() && nft.blockchainStatus === 'minted');
-
-        if (localNFT) {
-            console.log(`Utilisation des métadonnées locales pour token ${tokenId}`);
-            return {
-                id: tokenId,
-                tokenId: tokenId,
-                name: localNFT.name,
-                description: localNFT.description,
-                image: localNFT.image, // Vraie image depuis localStorage
-                price: parseFloat(ethers.utils.formatEther(item.price || 0)),
-                owner: item.owner || 'Inconnu',
-                seller: item.seller || 'Inconnu',
-                sold: item.sold || false,
-                forSale: item.listed || false,
-                category: localNFT.category || "Digital Art",
-                likes: localNFT.likes || 0,
-                views: localNFT.views || 0,
-                createdAt: new Date().toISOString().split('T')[0],
-                // IMPORTANT: Marquer comme NFT blockchain, pas local
-                isLocal: false,
-                source: 'blockchain',
-                blockchainStatus: 'minted'
-            };
+        // Vérifier si on a des métadonnées locales (optionnel, pour améliorer l'affichage)
+        let localNFT = null;
+        try {
+            const { getSubmittedNFTs } = await import('../utils/storage');
+            const localNFTs = getSubmittedNFTs();
+            localNFT = localNFTs.find(nft => nft.tokenId === tokenId.toString() && nft.blockchainStatus === 'minted');
+            if (localNFT) {
+                console.log(`Métadonnées locales trouvées pour token ${tokenId}`);
+            }
+        } catch (error) {
+            console.log(`Pas de métadonnées locales pour token ${tokenId}`);
         }
 
         // Essayer de récupérer l'URI du token
@@ -91,45 +75,60 @@ const processMarketItem = async (contract, item) => {
             tokenUri = await contract.tokenURI(tokenId);
         } catch (error) {
             console.warn(`Token URI inaccessible pour token ${tokenId}:`, error.message);
-            return null;
+            // Ne pas retourner null, continuer avec des métadonnées par défaut
+            tokenUri = null;
         }
 
         // Parser les métadonnées
         let metadata = {};
-        try {
-            if (tokenUri.startsWith('data:application/json;base64,')) {
-                const base64Data = tokenUri.replace('data:application/json;base64,', '');
-                metadata = JSON.parse(atob(base64Data));
-            } else if (tokenUri.startsWith('http')) {
-                const response = await fetch(tokenUri);
-                metadata = await response.json();
-            } else {
-                throw new Error('Format URI non supporté');
+        if (tokenUri) {
+            try {
+                if (tokenUri.startsWith('data:application/json;base64,')) {
+                    const base64Data = tokenUri.replace('data:application/json;base64,', '');
+                    metadata = JSON.parse(atob(base64Data));
+                } else if (tokenUri.startsWith('http')) {
+                    const response = await fetch(tokenUri);
+                    metadata = await response.json();
+                } else {
+                    throw new Error('Format URI non supporté');
+                }
+            } catch (error) {
+                console.warn(`Erreur parsing métadonnées pour token ${tokenId}:`, error);
+                metadata = {
+                    name: `NFT #${tokenId}`,
+                    description: "NFT disponible sur le marketplace",
+                    image: null
+                };
             }
-        } catch (error) {
-            console.warn(`Erreur parsing métadonnées pour token ${tokenId}:`, error);
+        } else {
+            // Pas d'URI disponible, utiliser des métadonnées par défaut
             metadata = {
                 name: `NFT #${tokenId}`,
-                description: "NFT créé sur votre marketplace",
-                image: null // Ne pas forcer une image par défaut
+                description: "NFT disponible sur le marketplace",
+                image: null
             };
         }
         
+        // Utiliser les métadonnées locales si disponibles, sinon blockchain
         return {
             id: tokenId,
             tokenId: tokenId,
-            name: metadata.name || `NFT #${tokenId}`,
-            description: metadata.description || "",
-            image: metadata.image,
+            name: localNFT ? localNFT.name : (metadata.name || `NFT #${tokenId}`),
+            description: localNFT ? localNFT.description : (metadata.description || "NFT disponible sur le marketplace"),
+            image: localNFT ? localNFT.image : metadata.image,
             price: parseFloat(ethers.utils.formatEther(item.price || 0)),
             owner: item.owner || 'Inconnu',
             seller: item.seller || 'Inconnu',
             sold: item.sold || false,
             forSale: item.listed || false,
-            category: metadata.category || "Digital Art",
-            likes: 0, // Commencer à 0 au lieu de valeurs aléatoires
-            views: 0, // Commencer à 0 au lieu de valeurs aléatoires
-            createdAt: new Date().toISOString().split('T')[0]
+            category: localNFT ? localNFT.category : (metadata.category || "Digital Art"),
+            likes: localNFT ? (localNFT.likes || 0) : 0,
+            views: localNFT ? (localNFT.views || 0) : 0,
+            createdAt: new Date().toISOString().split('T')[0],
+            // IMPORTANT: Toujours marquer comme NFT blockchain
+            isLocal: false,
+            source: 'blockchain',
+            blockchainStatus: 'minted'
         };
     } catch (error) {
         console.error(`Erreur traitement token ${item.tokenId}:`, error);
@@ -272,16 +271,108 @@ export const listNFTForSale = async (tokenId, price) => {
 };
 export const buyNFT = async (tokenId, price) => {
     try {
-        const { contract } = await getContract();
+        const { contract, provider, signer } = await getContract();
+
+        // 1. Vérifier le solde de l'acheteur
+        const buyerAddress = await signer.getAddress();
+        const balance = await signer.getBalance();
+        const priceInWei = ethers.utils.parseEther(price.toString());
+
+        console.log('=== VÉRIFICATION ACHAT ===');
+        console.log('Acheteur:', buyerAddress);
+        console.log('Solde:', ethers.utils.formatEther(balance), 'ETH');
+        console.log('Prix requis:', price, 'ETH');
+        console.log('Prix en Wei:', priceInWei.toString());
+
+        // Vérifier si l'acheteur a assez d'ETH (avec marge pour le gas)
+        const gasEstimate = ethers.utils.parseEther('0.01'); // Estimation conservative du gas
+        const totalRequired = priceInWei.add(gasEstimate);
+
+        if (balance.lt(totalRequired)) {
+            throw new Error(`Solde insuffisant. Vous avez ${ethers.utils.formatEther(balance)} ETH, mais ${ethers.utils.formatEther(totalRequired)} ETH sont requis (prix + gas estimé).`);
+        }
+
+        // 2. Récupérer les infos du NFT avant l'achat pour le suivi
+        const marketItem = await contract.getMarketItem(tokenId);
+        const seller = marketItem.seller;
+
+        console.log('NFT Info avant achat:');
+        console.log('Vendeur:', seller);
+        console.log('Prix:', ethers.utils.formatEther(marketItem.price), 'ETH');
+
+        // 3. Effectuer la transaction d'achat
+        console.log('🛒 Lancement de l\'achat...');
         const transaction = await contract.createMarketSale(tokenId, {
-            value: ethers.utils.parseEther(price.toString())
+            value: priceInWei,
+            gasLimit: 500000 // Gas limit conservateur
         });
-        await transaction.wait();
-        return transaction;
+
+        console.log('Transaction d\'achat envoyée:', transaction.hash);
+        const receipt = await transaction.wait();
+        console.log('✅ Achat confirmé !');
+
+        // 4. Enregistrer la transaction dans l'historique
+        const transactionRecord = {
+            id: `tx-${Date.now()}`,
+            type: 'purchase',
+            tokenId: tokenId,
+            nftName: `NFT #${tokenId}`, // Sera mis à jour avec le vrai nom si disponible
+            buyer: buyerAddress,
+            seller: seller,
+            price: parseFloat(price),
+            priceETH: `${price} ETH`,
+            transactionHash: transaction.hash,
+            date: new Date().toISOString(),
+            timestamp: Date.now(),
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed.toString()
+        };
+
+        // Sauvegarder dans localStorage
+        const existingHistory = JSON.parse(localStorage.getItem('nft-transactions') || '[]');
+        existingHistory.unshift(transactionRecord); // Ajouter au début
+
+        // Garder seulement les 100 dernières transactions
+        if (existingHistory.length > 100) {
+            existingHistory.splice(100);
+        }
+
+        localStorage.setItem('nft-transactions', JSON.stringify(existingHistory));
+
+        console.log('📝 Transaction enregistrée dans l\'historique:', transactionRecord);
+
+        return {
+            transaction,
+            receipt,
+            transactionRecord
+        };
+
     } catch (error) {
         console.error('Erreur achat NFT:', error);
         throw error;
     }
+};
+
+// Obtenir l'historique des transactions
+export const getTransactionHistory = () => {
+    try {
+        const history = JSON.parse(localStorage.getItem('nft-transactions') || '[]');
+        return history.sort((a, b) => b.timestamp - a.timestamp); // Trier par date décroissante
+    } catch (error) {
+        console.error('Erreur lecture historique:', error);
+        return [];
+    }
+};
+
+// Effacer l'historique des transactions
+export const clearTransactionHistory = () => {
+    localStorage.removeItem('nft-transactions');
+};
+
+// Obtenir les transactions pour un NFT spécifique
+export const getNFTTransactionHistory = (tokenId) => {
+    const allTransactions = getTransactionHistory();
+    return allTransactions.filter(tx => tx.tokenId.toString() === tokenId.toString());
 };
 
 // Retirer un NFT de la vente

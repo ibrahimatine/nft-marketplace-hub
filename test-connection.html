@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Connection MetaMask</title>
+</head>
+<body>
+    <h1>Test de connexion MetaMask</h1>
+    <button onclick="testConnection()">Tester la connexion</button>
+    <div id="result"></div>
+
+    <script>
+        async function testConnection() {
+            const result = document.getElementById('result');
+            result.innerHTML = '<p>Test en cours...</p>';
+
+            try {
+                if (typeof window.ethereum === 'undefined') {
+                    result.innerHTML = '<p style="color: red;">MetaMask non détecté</p>';
+                    return;
+                }
+
+                // Demander la connexion
+                await window.ethereum.request({ method: 'eth_requestAccounts' });
+
+                // Obtenir l'adresse
+                const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                const account = accounts[0];
+
+                // Obtenir le chain ID
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+
+                // Obtenir le solde
+                const balance = await window.ethereum.request({
+                    method: 'eth_getBalance',
+                    params: [account, 'latest']
+                });
+
+                // Obtenir le numéro de bloc actuel
+                const blockNumber = await window.ethereum.request({
+                    method: 'eth_blockNumber'
+                });
+
+                result.innerHTML = `
+                    <div style="color: green;">
+                        <h3>✅ Connexion réussie !</h3>
+                        <p><strong>Adresse :</strong> ${account}</p>
+                        <p><strong>Chain ID :</strong> ${parseInt(chainId, 16)} (0x${parseInt(chainId, 16).toString(16)})</p>
+                        <p><strong>Solde :</strong> ${parseInt(balance, 16) / 1e18} ETH</p>
+                        <p><strong>Bloc actuel :</strong> ${parseInt(blockNumber, 16)}</p>
+                    </div>
+                `;
+
+                // Test d'appel de contrat
+                const contractAddress = '0x2279B7A0a67DB372996a5FaB50D91eAA73d2eBe6';
+                const getListingPriceData = '0x12e85585'; // Signature de getListingPrice()
+
+                const listingPriceHex = await window.ethereum.request({
+                    method: 'eth_call',
+                    params: [{
+                        to: contractAddress,
+                        data: getListingPriceData
+                    }, 'latest']
+                });
+
+                const listingPrice = parseInt(listingPriceHex, 16) / 1e18;
+                result.innerHTML += `<p><strong>Prix de listing :</strong> ${listingPrice} ETH</p>`;
+
+            } catch (error) {
+                result.innerHTML = `<p style="color: red;">❌ Erreur : ${error.message}</p>`;
+                console.error('Erreur complète:', error);
+            }
+        }
+    </script>
+</body>
+</html>

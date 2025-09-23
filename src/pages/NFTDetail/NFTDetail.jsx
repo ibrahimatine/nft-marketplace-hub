@@ -17,7 +17,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { useAppContext } from '../../App';
-import { getNFTDetails, withdrawNFT, listNFTForSale } from '../../utils/contract';
+import { getNFTDetails, withdrawNFT, listNFTForSale, buyNFT } from '../../utils/contract';
 import { getSubmittedNFTs, updateSubmittedNFT } from '../../utils/storage';
 import { ethers } from 'ethers';
 
@@ -72,7 +72,7 @@ const NFTDetail = () => {
         return;
       }
       
-      // Charger depuis le contrat
+      // Charger depuis le contrat - RÉACTIVÉ
       try {
         const nftDetails = await getNFTDetails(nftId);
         setNft(nftDetails); // Utiliser directement les données retournées par getNFTDetails
@@ -96,12 +96,13 @@ const NFTDetail = () => {
     (walletAddress && nft?.seller && walletAddress.toLowerCase() === nft.seller.toLowerCase()) // Ajout: si vous êtes le vendeur
   );
 
-  // Migrer vers la blockchain
+  // Migrer vers la blockchain - RÉACTIVÉ
 const handleMigrateToBlockchain = async () => {
+
   let salePrice = null;
-  
+
   const wantToSell = window.confirm(`Voulez-vous mettre "${nft.name}" en vente lors de la création sur la blockchain ?`);
-  
+
   if (wantToSell) {
     salePrice = prompt('Prix de vente en ETH (ex: 2.5) :');
     if (!salePrice || parseFloat(salePrice) <= 0) {
@@ -109,48 +110,84 @@ const handleMigrateToBlockchain = async () => {
       return;
     }
   }
-  
+
   if (!window.confirm(`Créer "${nft.name}" sur la blockchain ?${salePrice ? ` Prix: ${salePrice} ETH` : ''}`)) return;
 
   setIsProcessing(true);
   try {
     const { getContract } = await import('../../utils/contract');
     const { contract } = await getContract();
-    
+
     // Tests de diagnostic
     console.log('Test: Récupération prix listing...');
     const listingPrice = await contract.getListingPrice();
     console.log('Prix listing:', listingPrice.toString());
-    
+
     const provider = new ethers.providers.Web3Provider(window.ethereum);
     const signer = provider.getSigner();
     const balance = await signer.getBalance();
     console.log('Solde:', ethers.utils.formatEther(balance), 'ETH');
-    
+
+    let imageToUse = nft.image;
+
+    // Vérifier la taille de l'image base64
+    const imageSize = nft.image ? nft.image.length : 0;
+    console.log('Taille image base64:', imageSize, 'caractères');
+
+    // Si l'image est trop grosse, proposer une alternative
+    if (imageSize > 15000) {
+      const useSmaller = window.confirm(
+        `⚠️ Image très lourde (${Math.round(imageSize/1000)}k caractères en base64)\n\n` +
+        `Cela va coûter beaucoup de gas et peut échouer.\n\n` +
+        `Voulez-vous utiliser une image placeholder temporaire ?\n\n` +
+        `✅ OUI = Image placeholder (migration rapide)\n` +
+        `❌ NON = Garder votre image (gas élevé)`
+      );
+
+      if (useSmaller) {
+        // Image placeholder petite (SVG simple)
+        imageToUse = `data:image/svg+xml;base64,${btoa(`
+          <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" fill="#667eea"/>
+            <text x="50" y="40" text-anchor="middle" fill="white" font-size="10">NFT</text>
+            <text x="50" y="60" text-anchor="middle" fill="white" font-size="8">${nft.name}</text>
+          </svg>
+        `)}`;
+        console.log('✅ Utilisation image placeholder');
+      }
+    }
+
     const metadata = {
       name: nft.name,
       description: nft.description,
       category: nft.category,
-      image: nft.image // Utiliser la vraie image du NFT
+      image: imageToUse
     };
-    
+
     const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
     const price = salePrice ? ethers.utils.parseEther(salePrice) : 0;
-    
-    console.log('TokenURI length:', tokenURI.length);
-    
+
+    console.log('TokenURI final length:', tokenURI.length);
+
+    // Vérifier la taille du TokenURI pour éviter les erreurs de gas
+    if (tokenURI.length > 20000) {
+      console.warn('TokenURI très long:', tokenURI.length, 'caractères');
+      const confirm = window.confirm(`Attention: TokenURI très long (${tokenURI.length} caractères).\nCela va coûter beaucoup de gas.\nContinuer quand même ?`);
+      if (!confirm) return;
+    }
+
     const transaction = await contract.createToken(tokenURI, price, {
       value: listingPrice,
-      gasLimit: 5000000
+      gasLimit: 8000000 // Augmenté pour les gros TokenURI
     });
-    
+
     await transaction.wait();
-    
+
     updateSubmittedNFT(nft.id, {
       blockchainStatus: 'minted',
       transactionHash: transaction.hash
     });
-    
+
     setNft(prev => ({
       ...prev,
       blockchainStatus: 'minted',
@@ -159,9 +196,9 @@ const handleMigrateToBlockchain = async () => {
       price: salePrice ? parseFloat(salePrice) : 0,
       forSale: !!salePrice
     }));
-    
+
     alert('NFT migré vers la blockchain avec succès !');
-    
+
   } catch (error) {
     console.error('Erreur migration:', error);
     alert('Erreur: ' + error.message);
@@ -180,6 +217,7 @@ const handleMigrateToBlockchain = async () => {
   };
 
   const confirmListing = async () => {
+
     if (!listingPrice || parseFloat(listingPrice) <= 0) {
       alert('Entrez un prix valide');
       return;
@@ -188,17 +226,17 @@ const handleMigrateToBlockchain = async () => {
     setIsProcessing(true);
     try {
       await listNFTForSale(nft.tokenId, listingPrice);
-      
-      setNft(prev => ({ 
-        ...prev, 
-        forSale: true, 
+
+      setNft(prev => ({
+        ...prev,
+        forSale: true,
         price: parseFloat(listingPrice)
       }));
-      
+
       setShowListingModal(false);
       setListingPrice('');
       alert('NFT mis en vente avec succès !');
-      
+
     } catch (error) {
       console.error('Erreur mise en vente:', error);
       alert('Erreur: ' + error.message);
@@ -207,25 +245,84 @@ const handleMigrateToBlockchain = async () => {
     }
   };
 
-  // Retirer de la vente
+  // Retirer de la vente - RÉACTIVÉ
   const handleWithdrawFromSale = async () => {
+
     if (!window.confirm(`Retirer "${nft.name}" de la vente ?`)) return;
 
     setIsProcessing(true);
     try {
       await withdrawNFT(nft.tokenId);
-      
-      setNft(prev => ({ 
-        ...prev, 
-        forSale: false, 
+
+      setNft(prev => ({
+        ...prev,
+        forSale: false,
         owner: walletAddress
       }));
-      
+
       alert('NFT retiré de la vente avec succès !');
-      
+
     } catch (error) {
       console.error('Erreur retrait:', error);
       alert('Erreur: ' + error.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Acheter un NFT - RÉACTIVÉ
+  const handleBuyNFT = async () => {
+
+    if (!isWalletConnected) {
+      alert('Connectez votre wallet pour acheter ce NFT');
+      return;
+    }
+
+    const confirmMessage = `Acheter "${nft.name}" pour ${nft.price} ETH ?\n\nCette action est irréversible.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setIsProcessing(true);
+    try {
+      console.log('Début de l\'achat du NFT:', nft.tokenId);
+
+      const result = await buyNFT(nft.tokenId, nft.price);
+
+      console.log('Achat réussi:', result);
+
+      // Mettre à jour l'état du NFT
+      setNft(prev => ({
+        ...prev,
+        owner: walletAddress,
+        forSale: false,
+        sold: true
+      }));
+
+      alert(`🎉 Félicitations ! Vous avez acheté "${nft.name}" avec succès !\n\nTransaction: ${result.transactionRecord.transactionHash}`);
+
+      // Rediriger vers le portfolio après un délai
+      setTimeout(() => {
+        navigate('/portfolio');
+      }, 2000);
+
+    } catch (error) {
+      console.error('Erreur achat NFT:', error);
+
+      // Messages d'erreur plus spécifiques
+      let errorMessage = 'Erreur lors de l\'achat du NFT';
+
+      if (error.message.includes('insufficient funds')) {
+        errorMessage = 'Solde ETH insuffisant pour effectuer cet achat';
+      } else if (error.message.includes('Solde insuffisant')) {
+        errorMessage = error.message;
+      } else if (error.message.includes('user rejected')) {
+        errorMessage = 'Transaction annulée par l\'utilisateur';
+      } else if (error.message.includes('already sold')) {
+        errorMessage = 'Ce NFT a déjà été vendu';
+      } else if (error.message.includes('not listed')) {
+        errorMessage = 'Ce NFT n\'est plus en vente';
+      }
+
+      alert(errorMessage);
     } finally {
       setIsProcessing(false);
     }
@@ -375,12 +472,13 @@ const handleMigrateToBlockchain = async () => {
                       // VISITEUR
                       <div className="buyer-actions">
                         {nft.forSale ? (
-                          <button 
+                          <button
                             className="btn btn-primary btn-large"
+                            onClick={handleBuyNFT}
                             disabled={isProcessing}
                           >
                             <ShoppingCart size={20} />
-                            Acheter maintenant
+                            {isProcessing ? 'Achat en cours...' : 'Acheter maintenant'}
                           </button>
                         ) : (
                           <p>Ce NFT n'est pas en vente</p>
