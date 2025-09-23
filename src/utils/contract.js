@@ -18,7 +18,9 @@ const CONTRACT_ABI = [
     "function getTokenCreator(uint256 tokenId) public view returns (address)",
     "function getMarketItem(uint256 tokenId) public view returns (tuple(uint256 tokenId, address seller, address owner, uint256 price, bool sold, bool listed))",
     "function totalSupply() public view returns (uint256)",
-    "event MarketItemCreated(uint256 indexed tokenId, address seller, address owner, uint256 price, bool sold)"
+    "event MarketItemCreated(uint256 indexed tokenId, address seller, address owner, uint256 price, bool sold)",
+    "event Transfer(address indexed from, address indexed to, uint256 indexed tokenId)",
+    "event MarketItemSold(uint256 indexed tokenId, address seller, address buyer, uint256 price)"
 ];
 
 // Obtenir le contrat avec signer (pour les transactions)
@@ -467,5 +469,97 @@ export const getNFTDetails = async (tokenId) => {
     } catch (error) {
         console.error('Erreur getNFTDetails:', error);
         throw error;
+    }
+};
+
+// Fonction pour récupérer l'historique des transferts d'un NFT
+export const getNFTHistory = async (tokenId) => {
+    try {
+        const { contract, provider } = await getContractReadOnly();
+
+        console.log(`Récupération historique pour NFT ${tokenId}`);
+
+        // Récupérer tous les événements Transfer pour ce token
+        const transferFilter = contract.filters.Transfer(null, null, tokenId);
+        const transferEvents = await contract.queryFilter(transferFilter, 0, 'latest');
+
+        // Récupérer tous les événements MarketItemCreated pour ce token
+        const createdFilter = contract.filters.MarketItemCreated(tokenId);
+        const createdEvents = await contract.queryFilter(createdFilter, 0, 'latest');
+
+        // Récupérer tous les événements MarketItemSold pour ce token
+        const soldFilter = contract.filters.MarketItemSold(tokenId);
+        const soldEvents = await contract.queryFilter(soldFilter, 0, 'latest');
+
+        // Construire l'historique complet
+        const history = [];
+
+        // Traiter les événements Transfer
+        for (const event of transferEvents) {
+            const block = await provider.getBlock(event.blockNumber);
+            const transaction = await provider.getTransaction(event.transactionHash);
+
+            let eventType = 'transfer';
+            let price = null;
+
+            // Déterminer le type d'événement
+            if (event.args.from === '0x0000000000000000000000000000000000000000') {
+                eventType = 'mint';
+            }
+
+            // Vérifier s'il y a un événement de vente correspondant
+            const saleEvent = soldEvents.find(sale =>
+                sale.transactionHash === event.transactionHash
+            );
+
+            if (saleEvent) {
+                eventType = 'sale';
+                price = parseFloat(ethers.utils.formatEther(saleEvent.args.price));
+            }
+
+            history.push({
+                type: eventType,
+                from: event.args.from,
+                to: event.args.to,
+                price: price,
+                timestamp: block.timestamp,
+                date: new Date(block.timestamp * 1000).toLocaleDateString('fr-FR'),
+                time: new Date(block.timestamp * 1000).toLocaleTimeString('fr-FR'),
+                transactionHash: event.transactionHash,
+                blockNumber: event.blockNumber
+            });
+        }
+
+        // Traiter les événements MarketItemCreated (mises en vente)
+        for (const event of createdEvents) {
+            const block = await provider.getBlock(event.blockNumber);
+
+            // Vérifier qu'il n'y a pas déjà un événement pour cette transaction
+            const existingEvent = history.find(h => h.transactionHash === event.transactionHash);
+
+            if (!existingEvent) {
+                history.push({
+                    type: 'listed',
+                    from: event.args.seller,
+                    to: null,
+                    price: parseFloat(ethers.utils.formatEther(event.args.price)),
+                    timestamp: block.timestamp,
+                    date: new Date(block.timestamp * 1000).toLocaleDateString('fr-FR'),
+                    time: new Date(block.timestamp * 1000).toLocaleTimeString('fr-FR'),
+                    transactionHash: event.transactionHash,
+                    blockNumber: event.blockNumber
+                });
+            }
+        }
+
+        // Trier par timestamp (plus ancien en premier pour avoir l'ordre chronologique)
+        history.sort((a, b) => a.timestamp - b.timestamp);
+
+        console.log(`Historique récupéré: ${history.length} événements`);
+        return history;
+
+    } catch (error) {
+        console.error('Erreur getNFTHistory:', error);
+        return [];
     }
 };

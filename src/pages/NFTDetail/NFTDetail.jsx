@@ -14,12 +14,18 @@ import {
   Eye,
   AlertCircle,
   ShoppingCart,
-  DollarSign
+  DollarSign,
+  History,
+  ArrowUpRight,
+  Zap,
+  ShoppingBag,
+  Hash
 } from 'lucide-react';
 import { useAppContext } from '../../App';
-import { getNFTDetails, withdrawNFT, listNFTForSale, buyNFT } from '../../utils/contract';
+import { getNFTDetails, withdrawNFT, listNFTForSale, buyNFT, getNFTHistory } from '../../utils/contract';
 import { getSubmittedNFTs, updateSubmittedNFT } from '../../utils/storage';
 import { ethers } from 'ethers';
+import contractAddresses from '../../contracts/contract-address.json';
 
 const NFTDetail = () => {
   const { id } = useParams();
@@ -32,10 +38,13 @@ const NFTDetail = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showListingModal, setShowListingModal] = useState(false);
   const [listingPrice, setListingPrice] = useState('');
+  const [history, setHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Charger le NFT
+  // Charger le NFT et son historique
   useEffect(() => {
     loadNFTDetails();
+    loadNFTHistory();
   }, [id, selectedNFT]);
 
   const loadNFTDetails = async () => {
@@ -86,6 +95,58 @@ const NFTDetail = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Charger l'historique du NFT
+  const loadNFTHistory = async () => {
+    if (!id || id.startsWith('local-')) {
+      // Pas d'historique pour les NFTs locaux
+      setHistory([]);
+      return;
+    }
+
+    setLoadingHistory(true);
+    try {
+      const nftId = parseInt(id);
+      const historyData = await getNFTHistory(nftId);
+      setHistory(historyData);
+      console.log('Historique chargé:', historyData);
+    } catch (error) {
+      console.error('Erreur chargement historique:', error);
+      setHistory([]);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Fonction helper pour formater les adresses
+  const formatAddress = (address) => {
+    if (!address) return null;
+
+    // Adresse nulle (création de NFT)
+    if (address === '0x0000000000000000000000000000000000000000') {
+      return {
+        display: 'Blockchain',
+        type: 'blockchain',
+        full: address
+      };
+    }
+
+    // Adresse du contrat (transfert vers le marketplace)
+    if (address.toLowerCase() === contractAddresses.NFTMarketplace?.toLowerCase()) {
+      return {
+        display: 'Marketplace',
+        type: 'marketplace',
+        full: address
+      };
+    }
+
+    // Adresse utilisateur standard
+    return {
+      display: `${address.slice(0,6)}...${address.slice(-4)}`,
+      type: 'user',
+      full: address
+    };
   };
 
   // Calculer si l'utilisateur est propriétaire
@@ -181,23 +242,32 @@ const handleMigrateToBlockchain = async () => {
       gasLimit: 8000000 // Augmenté pour les gros TokenURI
     });
 
-    await transaction.wait();
+    const receipt = await transaction.wait();
+    console.log('Migration réussie, hash:', transaction.hash);
 
-    updateSubmittedNFT(nft.id, {
-      blockchainStatus: 'minted',
-      transactionHash: transaction.hash
-    });
+    // Extraire le token ID depuis les logs
+    const transferLog = receipt.logs.find(log =>
+      log.topics[0] === '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef'
+    );
 
-    setNft(prev => ({
-      ...prev,
-      blockchainStatus: 'minted',
-      isLocal: false,
-      source: 'blockchain',
-      price: salePrice ? parseFloat(salePrice) : 0,
-      forSale: !!salePrice
-    }));
+    let tokenId = 'inconnu';
+    if (transferLog) {
+      tokenId = ethers.BigNumber.from(transferLog.topics[3]).toString();
+      console.log('Token ID extrait:', tokenId);
+    }
 
-    alert('NFT migré vers la blockchain avec succès !');
+    // SUPPRIMER le NFT local après migration réussie
+    const { removeSubmittedNFT } = await import('../../utils/storage');
+    removeSubmittedNFT(nft.id);
+    console.log('✅ NFT local supprimé après migration');
+
+    // Rediriger vers le NFT blockchain
+    alert(`🎉 NFT migré vers la blockchain avec succès !\n\nToken ID: ${tokenId}\nRedirection vers la version blockchain...`);
+
+    // Rediriger vers la version blockchain
+    setTimeout(() => {
+      navigate(`/nft/${tokenId}`);
+    }, 1000);
 
   } catch (error) {
     console.error('Erreur migration:', error);
@@ -495,6 +565,104 @@ const handleMigrateToBlockchain = async () => {
               <h3>Description</h3>
               <p>{nft.description}</p>
             </div>
+
+            {/* Historique des propriétaires - Seulement pour les NFTs blockchain */}
+            {!id.startsWith('local-') && (
+              <div className="nft-history">
+                <h3>
+                  <History size={20} />
+                  Historique des propriétaires
+                </h3>
+
+                {loadingHistory ? (
+                  <div className="history-loading">
+                    <Clock className="spinning" size={24} />
+                    <span>Chargement de l'historique...</span>
+                  </div>
+                ) : history.length > 0 ? (
+                  <div className="history-timeline">
+                    {history.map((event, index) => (
+                      <div key={`${event.transactionHash}-${index}`} className="history-event">
+                        <div className="event-icon">
+                          {event.type === 'mint' && <Zap size={16} />}
+                          {event.type === 'sale' && <ShoppingBag size={16} />}
+                          {event.type === 'transfer' && <ArrowUpRight size={16} />}
+                          {event.type === 'listed' && <Tag size={16} />}
+                        </div>
+
+                        <div className="event-content">
+                          <div className="event-header">
+                            <span className="event-type">
+                              {event.type === 'mint' && '🎨 Création'}
+                              {event.type === 'sale' && '💰 Vente'}
+                              {event.type === 'transfer' && '📤 Transfert'}
+                              {event.type === 'listed' && '🏷️ Mise en vente'}
+                            </span>
+                            <span className="event-date">{event.date} à {event.time}</span>
+                          </div>
+
+                          <div className="event-details">
+                            <div className="addresses">
+                              {(() => {
+                                const fromAddr = formatAddress(event.from);
+                                const toAddr = formatAddress(event.to);
+
+                                return (
+                                  <>
+                                    {fromAddr && fromAddr.type !== 'blockchain' && (
+                                      <span className={`address-info ${fromAddr.type}`}>
+                                        <User size={14} />
+                                        <span className={`address ${fromAddr.type}`}>
+                                          {fromAddr.display}
+                                        </span>
+                                      </span>
+                                    )}
+
+                                    {toAddr && (
+                                      <>
+                                        <ArrowUpRight size={14} />
+                                        <span className={`address-info ${toAddr.type}`}>
+                                          {toAddr.type === 'blockchain' && <Zap size={14} />}
+                                          {toAddr.type === 'marketplace' && <ShoppingBag size={14} />}
+                                          {toAddr.type === 'user' && <User size={14} />}
+                                          <span className={`address ${toAddr.type}`}>
+                                            {toAddr.display}
+                                          </span>
+                                        </span>
+                                      </>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+
+                            {event.price && (
+                              <div className="event-price">
+                                <DollarSign size={14} />
+                                <span>{event.price} ETH</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="event-transaction" title={`Transaction: ${event.transactionHash}`}>
+                            <Hash size={12} />
+                            <span className="transaction-text">Transaction</span>
+                            <span className="transaction-hash">
+                              {event.transactionHash.slice(0,10)}...{event.transactionHash.slice(-8)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="history-empty">
+                    <History size={48} />
+                    <p>Aucun historique disponible pour ce NFT</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

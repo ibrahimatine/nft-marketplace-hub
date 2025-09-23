@@ -82,16 +82,21 @@ const Portfolio = () => {
       setOwnedNFTs(ownedData);
       setOnSaleNFTs(listedData);
 
-      // 3. Calculer les statistiques (localStorage uniquement)
+      // 3. Calculer les statistiques (éviter les doublons)
+      // Filtrer les NFTs locaux actifs (non migrés)
+      const activeLocalNFTs = localNFTs.filter(nft =>
+        nft.blockchainStatus !== 'minted' && nft.status === 'submitted'
+      );
+
       const totalValue = ownedData.reduce((sum, nft) => sum + nft.price, 0);
-      const submittedValue = localNFTs.reduce((sum, nft) => sum + (nft.price || 0), 0);
+      const submittedValue = activeLocalNFTs.reduce((sum, nft) => sum + (nft.price || 0), 0);
 
       setPortfolioStats({
         totalValue: (totalValue + submittedValue).toFixed(4),
-        totalNFTs: ownedData.length + localNFTs.length,
-        onSaleCount: listedData.length + localNFTs.filter(nft => nft.forSale).length,
-        createdCount: ownedData.filter(nft => nft.seller === walletAddress).length,
-        submittedCount: localNFTs.length
+        totalNFTs: ownedData.length + activeLocalNFTs.length,
+        onSaleCount: listedData.length + activeLocalNFTs.filter(nft => nft.forSale).length,
+        createdCount: ownedData.filter(nft => nft.seller === walletAddress).length + activeLocalNFTs.length,
+        submittedCount: activeLocalNFTs.length
       });
 
     } catch (error) {
@@ -149,23 +154,28 @@ const Portfolio = () => {
   };
 
   const getCurrentNFTs = () => {
+    // Filtrer les NFTs locaux qui ont été migrés (éviter les doublons)
+    const activeLocalNFTs = submittedNFTs.filter(nft =>
+      nft.blockchainStatus !== 'minted' && nft.status === 'submitted'
+    );
+
     switch(activeTab) {
       case 'owned':
-        // Combiner NFTs blockchain + locaux
-        return [...ownedNFTs, ...submittedNFTs];
+        // Combiner NFTs blockchain + locaux non migrés
+        return [...ownedNFTs, ...activeLocalNFTs];
       case 'created':
-        // NFTs créés = blockchain créés + tous les soumis locaux
+        // NFTs créés = blockchain créés + tous les soumis locaux non migrés
         const blockchainCreated = ownedNFTs.filter(nft => nft.seller === walletAddress);
-        return [...blockchainCreated, ...submittedNFTs];
+        return [...blockchainCreated, ...activeLocalNFTs];
       case 'onsale':
-        // NFTs en vente = blockchain listés + locaux marqués forSale
-        const localForSale = submittedNFTs.filter(nft => nft.forSale);
+        // NFTs en vente = blockchain listés + locaux marqués forSale non migrés
+        const localForSale = activeLocalNFTs.filter(nft => nft.forSale);
         return [...onSaleNFTs, ...localForSale];
       case 'submitted':
-        // Nouveaux onglet pour les NFTs locaux uniquement
-        return submittedNFTs;
+        // Nouveaux onglet pour les NFTs locaux uniquement (non migrés)
+        return activeLocalNFTs;
       default:
-        return [...ownedNFTs, ...submittedNFTs];
+        return [...ownedNFTs, ...activeLocalNFTs];
     }
   };
 
