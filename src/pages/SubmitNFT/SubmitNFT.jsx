@@ -16,6 +16,7 @@ import { useAppContext } from '../../App';
 import { getContract } from '../../utils/contract';
 import { saveSubmittedNFT, updateSubmittedNFT } from '../../utils/storage';
 import { ethers } from 'ethers';
+import { uploadCompleteNFT } from '../../services/ipfsService';
 
 const SubmitNFT = () => {
   const navigate = useNavigate();
@@ -86,10 +87,16 @@ const SubmitNFT = () => {
     });
   };
   
-  // Redirect if not connected
+  // Redirect if not connected - AVEC DEBUG
   useEffect(() => {
+    console.log('🔍 SubmitNFT useEffect - Wallet connecté:', isWalletConnected);
+    console.log('🔍 SubmitNFT useEffect - Type:', typeof isWalletConnected);
+
     if (!isWalletConnected) {
+      console.log('❌ Wallet non connecté, redirection vers accueil...');
       navigate('/');
+    } else {
+      console.log('✅ Wallet connecté, rester sur /submit');
     }
   }, [isWalletConnected, navigate]);
   
@@ -195,7 +202,7 @@ const handleSubmit = async (e) => {
 
   try {
     if (formData.forSale) {
-      console.log('Création NFT en vente directement sur la blockchain...');
+      console.log('Création NFT en vente directement sur la blockchain avec IPFS...');
 
       const { contract } = await getContract();
 
@@ -203,43 +210,22 @@ const handleSubmit = async (e) => {
         throw new Error('Contrat non disponible');
       }
 
-      // Vérifier la taille de l'image
-      const imageSize = formData.imageDataUrl ? formData.imageDataUrl.length : 0;
-      console.log('Taille image base64:', imageSize, 'caractères');
-
-      // Optimiser l'image selon sa taille
-      let finalImage = formData.imageDataUrl;
-
-      if (imageSize > 30000) { // 30KB limite pour éviter les problèmes
-        console.log('Image trop grosse, compression en cours...');
-        try {
-          finalImage = await compressImage(formData.imageDataUrl, 25); // 25KB max
-          console.log('Image compressée:', finalImage.length, 'caractères');
-        } catch (err) {
-          console.warn('Erreur compression, utilisation d\'un placeholder');
-          finalImage = `https://picsum.photos/400/400?text=${encodeURIComponent(formData.name.substring(0, 20))}`;
-        }
-      } else {
-        console.log('Image taille acceptable, utilisation de la vraie image');
-      }
-
-      // Créer un tokenURI minimal qui référence les métadonnées externes
-      // Au lieu d'embarquer l'image dans le tokenURI, on crée un JSON minimal
-      const metadata = {
-        name: formData.name.substring(0, 30),
-        description: formData.description.substring(0, 50),
-        image: `https://picsum.photos/400/400?text=${encodeURIComponent(formData.name.substring(0, 10))}`
-      };
-
-      const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
-
-      // Sauvegarder l'image réelle localement pour l'affichage
-      const localMetadata = {
+      // Upload vers IPFS via Pinata
+      console.log('Upload du NFT vers IPFS...');
+      const nftData = {
+        file: formData.image,
         name: formData.name,
         description: formData.description,
-        category: formData.category,
-        image: finalImage // Garder la vraie image pour l'affichage local
+        attributes: [
+          {
+            trait_type: "Category",
+            value: formData.category
+          }
+        ]
       };
+
+      const tokenURI = await uploadCompleteNFT(nftData);
+      console.log('NFT uploadé sur IPFS, Token URI:', tokenURI);
 
       // Vérifier et corriger le prix
       const priceValue = parseFloat(formData.price);
@@ -276,14 +262,7 @@ const handleSubmit = async (e) => {
       console.log('Création du NFT sur la blockchain...');
       console.log('Prix:', ethers.utils.formatEther(price), 'ETH');
       console.log('Listing price:', ethers.utils.formatEther(listingPrice), 'ETH');
-      console.log('TokenURI length:', tokenURI.length);
-      console.log('TokenURI preview:', tokenURI.substring(0, 100) + '...');
-
-      // Test des paramètres avant envoi
-      console.log('Paramètres transaction:');
-      console.log('- tokenURI:', typeof tokenURI, tokenURI.length, 'caractères');
-      console.log('- price:', price.toString());
-      console.log('- value (listingPrice):', listingPrice.toString());
+      console.log('TokenURI (IPFS):', tokenURI);
 
       // Transaction avec paramètres conservateurs
       console.log('🚀 Envoi de la transaction...');
@@ -394,13 +373,14 @@ const handleSubmit = async (e) => {
       console.log('🎯 Token ID final:', newTokenId);
 
       // Sauvegarder les vraies métadonnées localement avec le token ID
-      const nftData = {
+      const nftDataToSave = {
         name: formData.name,
         description: formData.description,
         category: formData.category,
         price: formData.forSale ? parseFloat(formData.price) : 0,
         forSale: formData.forSale,
-        image: finalImage, // Vraie image
+        image: formData.imageDataUrl, // Image locale pour l'affichage
+        ipfsTokenURI: tokenURI, // URI IPFS pour référence
         likes: 0,
         views: 0,
         owner: 'Vous',
@@ -410,7 +390,7 @@ const handleSubmit = async (e) => {
         transactionHash: transaction.hash
       };
 
-      const savedNFT = saveSubmittedNFT(nftData);
+      const savedNFT = saveSubmittedNFT(nftDataToSave);
       console.log('Métadonnées complètes sauvegardées localement:', savedNFT);
 
       setSubmittedNFT({
@@ -428,27 +408,73 @@ const handleSubmit = async (e) => {
     } else {
       console.log('Création NFT en mode local uniquement...');
 
-      const nftData = {
-        name: formData.name,
-        description: formData.description,
-        category: formData.category,
-        price: 0,
-        forSale: false,
-        image: formData.imageDataUrl,
-        likes: 0,
-        views: 0,
-        owner: 'Vous',
-        seller: null,
-        tokenId: null,
-        contractAddress: null,
-        blockchainStatus: 'local-only'
-      };
+      // Même en mode local, on peut uploader sur IPFS pour avoir l'URL
+      try {
+        console.log('Upload du NFT vers IPFS (mode local)...');
+        const nftData = {
+          file: formData.image,
+          name: formData.name,
+          description: formData.description,
+          attributes: [
+            {
+              trait_type: "Category",
+              value: formData.category
+            }
+          ]
+        };
 
-      const savedNFT = saveSubmittedNFT(nftData);
-      console.log('NFT sauvegardé localement:', savedNFT);
+        const tokenURI = await uploadCompleteNFT(nftData);
+        console.log('NFT uploadé sur IPFS en mode local, Token URI:', tokenURI);
 
-      setSubmittedNFT(savedNFT);
-      setSubmitted(true);
+        const savedNFTData = {
+          name: formData.name,
+          description: formData.description,
+          category: formData.category,
+          price: 0,
+          forSale: false,
+          image: formData.imageDataUrl, // Image locale pour l'affichage
+          ipfsTokenURI: tokenURI, // URI IPFS pour référence
+          likes: 0,
+          views: 0,
+          owner: 'Vous',
+          seller: null,
+          tokenId: null,
+          contractAddress: null,
+          blockchainStatus: 'local-ipfs'
+        };
+
+        const savedNFT = saveSubmittedNFT(savedNFTData);
+        console.log('NFT sauvegardé localement avec IPFS:', savedNFT);
+
+        setSubmittedNFT(savedNFT);
+        setSubmitted(true);
+
+      } catch (ipfsError) {
+        console.warn('Erreur upload IPFS, sauvegarde locale uniquement:', ipfsError);
+
+        // Fallback: sauvegarde locale uniquement
+        const fallbackNFTData = {
+          name: formData.name,
+          description: formData.description,
+          category: formData.category,
+          price: 0,
+          forSale: false,
+          image: formData.imageDataUrl,
+          likes: 0,
+          views: 0,
+          owner: 'Vous',
+          seller: null,
+          tokenId: null,
+          contractAddress: null,
+          blockchainStatus: 'local-only'
+        };
+
+        const savedNFT = saveSubmittedNFT(fallbackNFTData);
+        console.log('NFT sauvegardé localement uniquement:', savedNFT);
+
+        setSubmittedNFT(savedNFT);
+        setSubmitted(true);
+      }
 
       setTimeout(() => {
         navigate('/portfolio');

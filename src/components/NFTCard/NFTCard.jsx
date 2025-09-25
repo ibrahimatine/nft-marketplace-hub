@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import './NFTCard.css';
 import { TrendingUp, Clock, Heart, Eye } from 'lucide-react';
+import { getNFTImageUrl } from '../../utils/ipfsHelpers';
 
 const NFTCard = ({ nft, badge, onClick }) => {
   const [isHovered, setIsHovered] = useState(false);
@@ -48,7 +49,7 @@ const NFTCard = ({ nft, badge, onClick }) => {
     >
       <div className="nft-card-image-container">
         <img
-          src={nft.image || 'https://via.placeholder.com/400x400/e5e7eb/9ca3af?text=No+Image'}
+          src={getNFTImageUrl(nft) || 'https://via.placeholder.com/400x400/e5e7eb/9ca3af?text=No+Image'}
           alt={nft.name}
           className="nft-card-image"
         />

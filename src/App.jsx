@@ -11,6 +11,8 @@ import Explore from './pages/Explore/Explore.jsx';
 import NFTDetail from './pages/NFTDetail/NFTDetail.jsx';
 import Portfolio from './pages/Portfolio/Portfolio.jsx';
 import SubmitNFT from './pages/SubmitNFT/SubmitNFT.jsx';
+import TestIPFS from './pages/TestIPFS/TestIPFS.jsx';
+import DiagnosticTest from './pages/DiagnosticTest/DiagnosticTest.jsx';
 
 // Context pour gérer l'état des NFTs et wallet
 const AppContext = createContext();
@@ -28,6 +30,7 @@ const AppProvider = ({ children }) => {
   const [selectedNFT, setSelectedNFT] = useState(null);
   const [isWalletConnected, setIsWalletConnected] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   // Vérifier si MetaMask est déjà connecté au chargement
   useEffect(() => {
@@ -52,11 +55,28 @@ const AppProvider = ({ children }) => {
 
   // Connexion MetaMask réelle
   const handleConnect = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        const accounts = await window.ethereum.request({
-          method: 'eth_requestAccounts',
-        });
+    console.log('🚀 handleConnect appelé');
+
+    // Vérifier si MetaMask est installé
+    if (typeof window.ethereum === 'undefined') {
+      alert('❌ MetaMask n\'est pas installé !\n\nVeuillez installer MetaMask pour utiliser cette application.\n\n👉 Rendez-vous sur https://metamask.io/');
+      return;
+    }
+
+    // Empêcher les connexions multiples simultanées
+    if (isConnecting) {
+      console.log('⏳ Connexion déjà en cours, veuillez patienter...');
+      alert('⏳ Connexion en cours...\n\nVeuillez patienter ou vérifier votre portefeuille MetaMask.');
+      return;
+    }
+
+    setIsConnecting(true);
+
+    try {
+      console.log('📱 Demande de connexion à MetaMask...');
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts',
+      });
         
         // Vérifier qu'on est sur le bon réseau (Hardhat = chainId 1337)
         const chainId = await window.ethereum.request({ 
@@ -91,16 +111,33 @@ const AppProvider = ({ children }) => {
         
         setWalletAddress(accounts[0]);
         setIsWalletConnected(true);
-        console.log('Connecté à:', accounts[0]);
-        console.log('Réseau:', chainId);
-        
+        console.log('✅ Wallet connecté avec succès !');
+        console.log('📍 Adresse:', accounts[0]);
+        console.log('🌐 Réseau:', chainId);
+        console.log('🔥 État isWalletConnected:', true);
+
       } catch (error) {
-        console.error('Erreur de connexion:', error);
-        alert('Erreur lors de la connexion au wallet: ' + error.message);
+        console.error('❌ Erreur de connexion:', error);
+
+        // Gestion spécifique des erreurs courantes
+        let userMessage = '';
+
+        if (error.code === -32002) {
+          userMessage = '⏳ Demande de connexion en attente\n\nVeuillez vérifier votre portefeuille MetaMask et approuver la demande de connexion.';
+        } else if (error.code === 4001) {
+          userMessage = '❌ Connexion refusée\n\nVous avez refusé la connexion. Cliquez sur "Connecter" pour réessayer.';
+        } else if (error.message && error.message.includes('User rejected')) {
+          userMessage = '❌ Connexion annulée\n\nVous avez annulé la connexion à MetaMask.';
+        } else if (error.message && error.message.includes('Already processing')) {
+          userMessage = '⏳ Traitement en cours\n\nVeuillez patienter, une demande est déjà en cours de traitement.';
+        } else {
+          userMessage = `❌ Erreur de connexion\n\n${error.message || 'Erreur inconnue'}\n\nVeuillez réessayer ou vérifier votre installation MetaMask.`;
+        }
+
+        alert(userMessage);
+      } finally {
+        setIsConnecting(false);
       }
-    } else {
-      alert('MetaMask n\'est pas installé. Veuillez l\'installer pour utiliser cette application.');
-    }
   };
 
   const handleDisconnect = async () => {
@@ -154,7 +191,8 @@ const AppProvider = ({ children }) => {
     selectedNFT,
     setSelectedNFT,
     handleConnect,
-    handleDisconnect
+    handleDisconnect,
+    isConnecting
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -178,21 +216,23 @@ function App() {
               <Route path="/" element={<Welcome />} />
               <Route path="/explore" element={<Explore />} />
               <Route path="/nft/:id" element={<NFTDetail />} />
-              <Route 
-                path="/portfolio" 
+              <Route path="/test-ipfs" element={<TestIPFS />} />
+              <Route path="/diagnostic" element={<DiagnosticTest />} />
+              <Route
+                path="/portfolio"
                 element={
                   <PrivateRoute>
                     <Portfolio />
                   </PrivateRoute>
-                } 
+                }
               />
-              <Route 
-                path="/submit" 
+              <Route
+                path="/submit"
                 element={
                   <PrivateRoute>
                     <SubmitNFT />
                   </PrivateRoute>
-                } 
+                }
               />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

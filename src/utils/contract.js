@@ -81,34 +81,66 @@ const processMarketItem = async (contract, item) => {
             tokenUri = null;
         }
 
-        // Parser les métadonnées
-        let metadata = {};
+        // Parser les métadonnées AVEC gestion d'erreur améliorée
+        let metadata = {
+            name: `NFT #${tokenId}`,
+            description: "NFT disponible sur le marketplace",
+            image: null
+        };
+
         if (tokenUri) {
             try {
                 if (tokenUri.startsWith('data:application/json;base64,')) {
                     const base64Data = tokenUri.replace('data:application/json;base64,', '');
                     metadata = JSON.parse(atob(base64Data));
+                } else if (tokenUri.startsWith('ipfs://')) {
+                    // Utilisation du proxy Vite pour éviter les CORS
+                    const hash = tokenUri.replace('ipfs://', '');
+                    const proxyUrl = `/ipfs-proxy/${hash}`;
+
+                    try {
+                        console.log(`📡 Fetch IPFS via proxy pour token ${tokenId}: ${proxyUrl}`);
+
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                        const response = await fetch(proxyUrl, {
+                            signal: controller.signal,
+                            headers: { 'Accept': 'application/json' }
+                        });
+                        clearTimeout(timeoutId);
+
+                        if (response.ok) {
+                            metadata = await response.json();
+                            console.log(`✅ IPFS proxy réussi pour token ${tokenId}`);
+                        } else {
+                            console.warn(`❌ IPFS proxy échoué (${response.status}) pour token ${tokenId}`);
+                        }
+                    } catch (fetchError) {
+                        console.warn(`❌ IPFS proxy erreur pour token ${tokenId}:`, fetchError.message);
+                    }
                 } else if (tokenUri.startsWith('http')) {
-                    const response = await fetch(tokenUri);
-                    metadata = await response.json();
-                } else {
-                    throw new Error('Format URI non supporté');
+                    try {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                        const response = await fetch(tokenUri, { signal: controller.signal });
+                        clearTimeout(timeoutId);
+
+                        if (response.ok) {
+                            metadata = await response.json();
+                        } else {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                    } catch (fetchError) {
+                        console.warn(`HTTP fetch échoué pour ${tokenId}:`, fetchError.message);
+                        // Garder les métadonnées par défaut
+                    }
                 }
             } catch (error) {
-                console.warn(`Erreur parsing métadonnées pour token ${tokenId}:`, error);
-                metadata = {
-                    name: `NFT #${tokenId}`,
-                    description: "NFT disponible sur le marketplace",
-                    image: null
-                };
+                console.warn(`Erreur parsing métadonnées pour token ${tokenId}:`, error.message);
+                // Les métadonnées par défaut sont déjà définies
             }
-        } else {
-            // Pas d'URI disponible, utiliser des métadonnées par défaut
-            metadata = {
-                name: `NFT #${tokenId}`,
-                description: "NFT disponible sur le marketplace",
-                image: null
-            };
         }
         
         // Utiliser les métadonnées locales si disponibles, sinon blockchain
@@ -418,23 +450,60 @@ export const getNFTDetails = async (tokenId) => {
             throw new Error('NFT non trouvé ou inaccessible');
         }
         
-        // Parser les métadonnées
-        let metadata = {};
+        // Parser les métadonnées avec gestion d'erreur robuste
+        let metadata = {
+            name: `NFT #${tokenId}`,
+            description: "NFT créé sur votre marketplace",
+            image: null
+        };
+
         try {
             if (tokenURI.startsWith('data:application/json;base64,')) {
                 const base64Data = tokenURI.replace('data:application/json;base64,', '');
                 metadata = JSON.parse(atob(base64Data));
+            } else if (tokenURI.startsWith('ipfs://')) {
+                // Utilisation du proxy Vite pour éviter les CORS
+                const hash = tokenURI.replace('ipfs://', '');
+                const proxyUrl = `/ipfs-proxy/${hash}`;
+
+                try {
+                    console.log(`📡 Fetch IPFS details via proxy pour token ${tokenId}: ${proxyUrl}`);
+
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+                    const response = await fetch(proxyUrl, {
+                        signal: controller.signal,
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (response.ok) {
+                        metadata = await response.json();
+                        console.log(`✅ IPFS details proxy réussi pour token ${tokenId}`);
+                    } else {
+                        console.warn(`❌ IPFS details proxy échoué (${response.status}) pour token ${tokenId}`);
+                    }
+                } catch (fetchError) {
+                    console.warn(`❌ IPFS details proxy erreur pour token ${tokenId}:`, fetchError.message);
+                }
             } else if (tokenURI.startsWith('http')) {
-                const response = await fetch(tokenURI);
-                metadata = await response.json();
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                    const response = await fetch(tokenURI, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+
+                    if (response.ok) {
+                        metadata = await response.json();
+                    }
+                } catch (fetchError) {
+                    console.warn(`HTTP fetch échoué pour token ${tokenId}:`, fetchError.message);
+                }
             }
         } catch (error) {
-            console.warn('Erreur parsing métadonnées:', error);
-            metadata = {
-                name: `NFT #${tokenId}`,
-                description: "NFT créé sur votre marketplace",
-                image: null // Ne pas forcer une image par défaut
-            };
+            console.warn(`Erreur parsing métadonnées token ${tokenId}:`, error.message);
         }
         
         return {
