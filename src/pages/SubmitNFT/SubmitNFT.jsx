@@ -237,7 +237,6 @@ const handleSubmit = async (e) => {
       }
 
       const price = ethers.utils.parseEther(priceValue.toString());
-      console.log('Prix en Wei:', price.toString());
       console.log('Prix vérifié:', ethers.utils.formatEther(price), 'ETH');
 
       // Test de base du contrat d'abord
@@ -372,26 +371,9 @@ const handleSubmit = async (e) => {
 
       console.log('🎯 Token ID final:', newTokenId);
 
-      // Sauvegarder les vraies métadonnées localement avec le token ID
-      const nftDataToSave = {
-        name: formData.name,
-        description: formData.description,
-        category: formData.category,
-        price: formData.forSale ? parseFloat(formData.price) : 0,
-        forSale: formData.forSale,
-        image: formData.imageDataUrl, // Image locale pour l'affichage
-        ipfsTokenURI: tokenURI, // URI IPFS pour référence
-        likes: 0,
-        views: 0,
-        owner: 'Vous',
-        seller: formData.forSale ? 'Vous' : null,
-        tokenId: newTokenId,
-        blockchainStatus: 'minted',
-        transactionHash: transaction.hash
-      };
-
-      const savedNFT = saveSubmittedNFT(nftDataToSave);
-      console.log('Métadonnées complètes sauvegardées localement:', savedNFT);
+      // IMPORTANT: Ne pas sauvegarder localement les NFTs mis directement en vente
+      // Ils seront récupérés automatiquement depuis la blockchain
+      console.log('NFT créé directement sur blockchain - pas de sauvegarde locale pour éviter duplication');
 
       setSubmittedNFT({
         name: formData.name,

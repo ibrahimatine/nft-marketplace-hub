@@ -5,7 +5,7 @@ import NFTCard from '../../components/NFTCard/NFTCard';
 import { Filter, Search, Grid, List } from 'lucide-react';
 import { categories, priceFilters } from '../../data/mockData';
 import { useAppContext } from '../../App';
-import { fetchMarketplaceNFTs } from '../../utils/contract';
+import { fetchAllMarketplaceNFTs } from '../../utils/contract';
 import { getSubmittedNFTs } from '../../utils/storage';
 
 const Explore = () => {
@@ -17,7 +17,7 @@ const Explore = () => {
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [selectedPriceFilter, setSelectedPriceFilter] = useState(priceFilters[0]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showOnlyForSale, setShowOnlyForSale] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('tous'); // 'tous', 'en-vente', 'vendus'
   const [gridView, setGridView] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -32,15 +32,15 @@ const Explore = () => {
   // Filtrer les NFTs quand les critères changent
   useEffect(() => {
     filterNFTs();
-  }, [selectedCategory, selectedPriceFilter, searchQuery, showOnlyForSale, nfts]);
+  }, [selectedCategory, selectedPriceFilter, searchQuery, statusFilter, nfts]);
 
   const loadAllNFTs = async () => {
     setLoading(true);
     setError('');
     
     try {
-      // 1. Charger les NFTs de la blockchain
-      const marketplaceNFTs = await fetchMarketplaceNFTs().catch(err => {
+      // 1. Charger TOUS les NFTs de la blockchain (pas seulement ceux en vente)
+      const marketplaceNFTs = await fetchAllMarketplaceNFTs().catch(err => {
         console.warn('Erreur chargement marketplace blockchain:', err);
         return [];
       });
@@ -51,15 +51,23 @@ const Explore = () => {
         source: 'local' // Marquer comme local pour différenciation
       }));
 
-      // 3. Combiner tous les NFTs
+      // 3. Filtrer les NFTs locaux qui existent déjà sur la blockchain pour éviter doublons
+      const blockchainTokenIds = new Set(marketplaceNFTs.map(nft => nft.tokenId || nft.id));
+      const filteredLocalNFTs = localNFTs.filter(localNFT => {
+        // Garder seulement les NFTs locaux qui ne sont PAS encore sur la blockchain
+        return !localNFT.blockchainStatus || localNFT.blockchainStatus !== 'minted' || !blockchainTokenIds.has(localNFT.tokenId);
+      });
+
+      // 4. Combiner tous les NFTs sans doublons
       const allNFTs = [
         ...marketplaceNFTs.map(nft => ({ ...nft, source: 'blockchain' })),
-        ...localNFTs
+        ...filteredLocalNFTs
       ];
 
       console.log('NFTs chargés:', {
         blockchain: marketplaceNFTs.length,
         local: localNFTs.length,
+        localFiltered: filteredLocalNFTs.length,
         total: allNFTs.length
       });
 
@@ -106,10 +114,13 @@ const Explore = () => {
       );
     }
 
-    // Filtre "en vente uniquement"
-    if (showOnlyForSale) {
-      filtered = filtered.filter(nft => nft.forSale);
+    // Filtre par statut
+    if (statusFilter === 'en-vente') {
+      filtered = filtered.filter(nft => nft.forSale && !nft.sold);
+    } else if (statusFilter === 'vendus') {
+      filtered = filtered.filter(nft => nft.sold === true);
     }
+    // Si 'tous', on ne filtre pas par statut
 
     setFilteredNfts(filtered);
     setCurrentPage(1);
@@ -258,14 +269,27 @@ const Explore = () => {
             </div>
 
             <div className="filter-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={showOnlyForSale}
-                  onChange={(e) => setShowOnlyForSale(e.target.checked)}
-                />
-                <span>En vente uniquement</span>
-              </label>
+              <label>Statut</label>
+              <div className="status-filters">
+                <button
+                  className={`status-btn ${statusFilter === 'tous' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('tous')}
+                >
+                  Tous
+                </button>
+                <button
+                  className={`status-btn ${statusFilter === 'en-vente' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('en-vente')}
+                >
+                  En vente
+                </button>
+                <button
+                  className={`status-btn ${statusFilter === 'vendus' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('vendus')}
+                >
+                  Vendus
+                </button>
+              </div>
             </div>
 
             <button 

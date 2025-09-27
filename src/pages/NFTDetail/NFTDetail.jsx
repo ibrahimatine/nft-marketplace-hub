@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import './NFTDetail.css';
-import { 
-  ArrowLeft, 
-  Heart, 
-  Share2, 
-  ExternalLink, 
+import {
+  ArrowLeft,
+  Heart,
+  Share2,
+  ExternalLink,
   Clock,
   TrendingUp,
+  CheckCircle,
   User,
   Calendar,
   Tag,
@@ -24,6 +25,7 @@ import {
 import { useAppContext } from '../../App';
 import { getNFTDetails, withdrawNFT, listNFTForSale, buyNFT, getNFTHistory } from '../../utils/contract';
 import { getSubmittedNFTs, updateSubmittedNFT } from '../../utils/storage';
+import { getNFTStats, incrementNFTViews, toggleNFTLike } from '../../services/statsService';
 import { ethers } from 'ethers';
 import contractAddresses from '../../contracts/contract-address.json';
 
@@ -40,12 +42,46 @@ const NFTDetail = () => {
   const [listingPrice, setListingPrice] = useState('');
   const [history, setHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [stats, setStats] = useState({ views: 0, likes: 0, likedBy: [] });
+  const [isLiked, setIsLiked] = useState(false);
 
   // Charger le NFT et son historique
   useEffect(() => {
     loadNFTDetails();
     loadNFTHistory();
+    loadNFTStats();
   }, [id, selectedNFT]);
+
+  // Charger les stats du NFT
+  const loadNFTStats = async () => {
+    if (!id) return;
+
+    const nftStats = await getNFTStats(id);
+    setStats(nftStats);
+
+    // Vérifier si l'utilisateur actuel a liké
+    if (walletAddress && nftStats.likedBy) {
+      setIsLiked(nftStats.likedBy.includes(walletAddress));
+    }
+
+    // Incrémenter les vues
+    await incrementNFTViews(id, walletAddress);
+  };
+
+  // Gérer les likes
+  const handleLike = async () => {
+    if (!isWalletConnected || !walletAddress) {
+      alert('Connectez votre wallet pour liker ce NFT');
+      return;
+    }
+
+    const result = await toggleNFTLike(id, walletAddress);
+
+    if (result.success) {
+      setStats(prev => ({ ...prev, likes: result.likes }));
+      setIsLiked(result.isLiked);
+    }
+  };
 
   const loadNFTDetails = async () => {
     if (!id) return;
@@ -153,8 +189,10 @@ const NFTDetail = () => {
   const isOwner = isWalletConnected && (
     id.startsWith('local-') || // Tout NFT local appartient à l'utilisateur connecté
     (walletAddress && nft?.owner && walletAddress.toLowerCase() === nft.owner.toLowerCase()) ||
-    (walletAddress && nft?.creator && walletAddress.toLowerCase() === nft.creator.toLowerCase()) ||
-    (walletAddress && nft?.seller && walletAddress.toLowerCase() === nft.seller.toLowerCase()) // Ajout: si vous êtes le vendeur
+    // Pour NFTs blockchain: seulement si on est le propriétaire actuel ET pas vendu
+    (walletAddress && nft?.creator && walletAddress.toLowerCase() === nft.creator.toLowerCase() && !nft?.sold) ||
+    // Ou si on est le vendeur ET le NFT est encore en vente (pas vendu)
+    (walletAddress && nft?.seller && walletAddress.toLowerCase() === nft.seller.toLowerCase() && nft?.forSale && !nft?.sold)
   );
 
   // Migrer vers la blockchain - RÉACTIVÉ
@@ -176,56 +214,98 @@ const handleMigrateToBlockchain = async () => {
 
   setIsProcessing(true);
   try {
-    const { getContract } = await import('../../utils/contract');
-    const { contract } = await getContract();
+    // 1. Vérifications préliminaires MetaMask
+    if (typeof window.ethereum === 'undefined') {
+      throw new Error('MetaMask n\'est pas installé');
+    }
+
+    // Vérifier que MetaMask est connecté
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    if (accounts.length === 0) {
+      throw new Error('MetaMask n\'est pas connecté');
+    }
+
+    // Vérifier le réseau (chainId 1337 pour Hardhat)
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId !== '0x539') {
+      throw new Error(`Mauvais réseau. Connectez-vous au réseau Hardhat (chainId: 1337)`);
+    }
+
+    console.log('✅ Vérifications MetaMask OK');
+
+    // Créer un provider et signer d'abord
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+
+    // Importer l'adresse et ABI du contrat
+    const contractAddresses = await import('../../contracts/contract-address.json');
+    const { abi } = await import('../../../artifacts/contracts/NFTMarketplace.sol/NFTMarketplace.json');
+
+    // Créer le contrat avec le signer
+    const contract = new ethers.Contract(contractAddresses.NFTMarketplace, abi, signer);
 
     // Tests de diagnostic
     console.log('Test: Récupération prix listing...');
-    const listingPrice = await contract.getListingPrice();
-    console.log('Prix listing:', listingPrice.toString());
+    let listingPrice;
+    try {
+      listingPrice = await contract.getListingPrice();
+      console.log('Prix listing:', ethers.utils.formatEther(listingPrice), 'ETH');
+    } catch (priceError) {
+      console.error('Erreur getListingPrice:', priceError);
+      throw new Error('Impossible de récupérer le prix de listing. Vérifiez que Hardhat node est en marche et que MetaMask est sur le bon réseau.');
+    }
 
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
     const balance = await signer.getBalance();
     console.log('Solde:', ethers.utils.formatEther(balance), 'ETH');
 
-    let imageToUse = nft.image;
+    // Vérifier si le NFT a déjà une URI IPFS (cas moderne)
+    let tokenURI;
 
-    // Vérifier la taille de l'image base64
-    const imageSize = nft.image ? nft.image.length : 0;
-    console.log('Taille image base64:', imageSize, 'caractères');
+    if (nft.ipfsTokenURI && nft.ipfsTokenURI.startsWith('ipfs://')) {
+      console.log('✅ NFT a déjà une URI IPFS:', nft.ipfsTokenURI);
+      tokenURI = nft.ipfsTokenURI;
+    } else {
+      console.log('⚠️ Pas d\'URI IPFS, fallback vers base64');
 
-    // Si l'image est trop grosse, proposer une alternative
-    if (imageSize > 15000) {
-      const useSmaller = window.confirm(
-        `⚠️ Image très lourde (${Math.round(imageSize/1000)}k caractères en base64)\n\n` +
-        `Cela va coûter beaucoup de gas et peut échouer.\n\n` +
-        `Voulez-vous utiliser une image placeholder temporaire ?\n\n` +
-        `✅ OUI = Image placeholder (migration rapide)\n` +
-        `❌ NON = Garder votre image (gas élevé)`
-      );
+      let imageToUse = nft.image;
 
-      if (useSmaller) {
-        // Image placeholder petite (SVG simple)
-        imageToUse = `data:image/svg+xml;base64,${btoa(`
-          <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
-            <rect width="100" height="100" fill="#667eea"/>
-            <text x="50" y="40" text-anchor="middle" fill="white" font-size="10">NFT</text>
-            <text x="50" y="60" text-anchor="middle" fill="white" font-size="8">${nft.name}</text>
-          </svg>
-        `)}`;
-        console.log('✅ Utilisation image placeholder');
+      // Vérifier la taille de l'image base64
+      const imageSize = nft.image ? nft.image.length : 0;
+      console.log('Taille image base64:', imageSize, 'caractères');
+
+      // Si l'image est trop grosse, proposer une alternative
+      if (imageSize > 15000) {
+        const useSmaller = window.confirm(
+          `⚠️ Image très lourde (${Math.round(imageSize/1000)}k caractères en base64)\n\n` +
+          `Cela va coûter beaucoup de gas et peut échouer.\n\n` +
+          `Voulez-vous utiliser une image placeholder temporaire ?\n\n` +
+          `✅ OUI = Image placeholder (migration rapide)\n` +
+          `❌ NON = Garder votre image (gas élevé)`
+        );
+
+        if (useSmaller) {
+          // Image placeholder petite (SVG simple)
+          imageToUse = `data:image/svg+xml;base64,${btoa(`
+            <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+              <rect width="100" height="100" fill="#667eea"/>
+              <text x="50" y="40" text-anchor="middle" fill="white" font-size="10">NFT</text>
+              <text x="50" y="60" text-anchor="middle" fill="white" font-size="8">${nft.name}</text>
+            </svg>
+          `)}`;
+          console.log('✅ Utilisation image placeholder');
+        }
       }
+
+      const metadata = {
+        name: nft.name,
+        description: nft.description,
+        category: nft.category,
+        image: imageToUse
+      };
+
+      tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
     }
 
-    const metadata = {
-      name: nft.name,
-      description: nft.description,
-      category: nft.category,
-      image: imageToUse
-    };
-
-    const tokenURI = `data:application/json;base64,${btoa(JSON.stringify(metadata))}`;
     const price = salePrice ? ethers.utils.parseEther(salePrice) : 0;
 
     console.log('TokenURI final length:', tokenURI.length);
@@ -237,10 +317,33 @@ const handleMigrateToBlockchain = async () => {
       if (!confirm) return;
     }
 
-    const transaction = await contract.createToken(tokenURI, price, {
-      value: listingPrice,
-      gasLimit: 8000000 // Augmenté pour les gros TokenURI
-    });
+    // Configuration de transaction plus sûre
+    let txOptions = {
+      value: listingPrice
+    };
+
+    // Estimation du gas d'abord
+    try {
+      const estimatedGas = await contract.estimateGas.createToken(tokenURI, price, {
+        value: listingPrice
+      });
+
+      // Ajouter une marge de 20% au gas estimé
+      const gasLimit = estimatedGas.mul(120).div(100);
+
+      // Plafonner à 5M de gas pour éviter les erreurs MetaMask
+      const maxGas = ethers.BigNumber.from(5000000);
+      txOptions.gasLimit = gasLimit.gt(maxGas) ? maxGas : gasLimit;
+
+      console.log('Gas estimé:', estimatedGas.toString());
+      console.log('Gas limit utilisé:', txOptions.gasLimit.toString());
+
+    } catch (gasError) {
+      console.warn('Estimation gas échouée, utilisation valeur par défaut:', gasError);
+      txOptions.gasLimit = 3000000; // Valeur par défaut plus conservative
+    }
+
+    const transaction = await contract.createToken(tokenURI, price, txOptions);
 
     const receipt = await transaction.wait();
     console.log('Migration réussie, hash:', transaction.hash);
@@ -271,7 +374,24 @@ const handleMigrateToBlockchain = async () => {
 
   } catch (error) {
     console.error('Erreur migration:', error);
-    alert('Erreur: ' + error.message);
+
+    let errorMessage = 'Erreur inconnue';
+
+    if (error.code === -32603) {
+      errorMessage = '❌ Erreur de réseau blockchain\n\nVérifiez que:\n• Hardhat node est en marche\n• MetaMask est connecté au bon réseau\n• Vous avez assez d\'ETH pour le gas';
+    } else if (error.code === 4001) {
+      errorMessage = '❌ Transaction annulée par l\'utilisateur';
+    } else if (error.message?.includes('insufficient funds')) {
+      errorMessage = '❌ Fonds insuffisants\n\nVous n\'avez pas assez d\'ETH pour payer les frais de transaction.';
+    } else if (error.message?.includes('gas')) {
+      errorMessage = '❌ Erreur de gas\n\nLe NFT est peut-être trop volumineux. Essayez avec l\'image placeholder.';
+    } else if (error.message?.includes('reverted')) {
+      errorMessage = '❌ Transaction rejetée par le contrat\n\nVérifiez que le prix et les paramètres sont valides.';
+    } else {
+      errorMessage = `❌ Erreur: ${error.message || error.toString()}`;
+    }
+
+    alert(errorMessage);
   } finally {
     setIsProcessing(false);
   }
@@ -479,18 +599,39 @@ const handleMigrateToBlockchain = async () => {
                   </div>
                 </div>
               </div>
+
+              {/* Statistiques du NFT */}
+              <div className="nft-stats">
+                <div className="stats-row">
+                  <button className="stat-item like-button" onClick={handleLike}>
+                    <Heart
+                      size={20}
+                      fill={isLiked ? '#EF4444' : 'none'}
+                      color={isLiked ? '#EF4444' : '#64748b'}
+                    />
+                    <span>{stats.likes} J'aime</span>
+                  </button>
+                  <div className="stat-item">
+                    <Eye size={20} color="#64748b" />
+                    <span>{stats.views} Vues</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Prix et actions */}
             <div className="price-section">
-              <div className="price-info">
-                <span className="price-label">Prix</span>
-                <div className="price-value">
-                  <DollarSign size={24} />
-                  <span className="price-amount">{nft.price || 0}</span>
-                  <span className="price-currency">ETH</span>
+              {/* Afficher le prix seulement si le NFT est en vente */}
+              {nft.forSale && !nft.sold && (
+                <div className="price-info">
+                  <span className="price-label">Prix</span>
+                  <div className="price-value">
+                    <DollarSign size={24} />
+                    <span className="price-amount">{nft.price || 0}</span>
+                    <span className="price-currency">ETH</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Actions selon le type de NFT et propriétaire */}
               <div className="action-buttons">
@@ -519,22 +660,22 @@ const handleMigrateToBlockchain = async () => {
                     {isOwner ? (
                       // PROPRIÉTAIRE
                       <div className="owner-actions">
-                        {!nft.forSale ? (
-                          <button 
+                        {nft.forSale && !nft.sold ? (
+                          <button
+                            className="btn btn-secondary btn-large"
+                            onClick={handleWithdrawFromSale}
+                            disabled={isProcessing}
+                          >
+                            Retirer de la vente
+                          </button>
+                        ) : (
+                          <button
                             className="btn btn-primary btn-large"
                             onClick={handleListForSale}
                             disabled={isProcessing}
                           >
                             <Tag size={20} />
                             Mettre en vente
-                          </button>
-                        ) : (
-                          <button 
-                            className="btn btn-secondary btn-large"
-                            onClick={handleWithdrawFromSale}
-                            disabled={isProcessing}
-                          >
-                            Retirer de la vente
                           </button>
                         )}
                       </div>
@@ -551,7 +692,10 @@ const handleMigrateToBlockchain = async () => {
                             {isProcessing ? 'Achat en cours...' : 'Acheter maintenant'}
                           </button>
                         ) : (
-                          <p>Ce NFT n'est pas en vente</p>
+                          <div className="not-for-sale">
+                            <AlertCircle size={20} />
+                            <span>Ce NFT n'est pas en vente</span>
+                          </div>
                         )}
                       </div>
                     )}

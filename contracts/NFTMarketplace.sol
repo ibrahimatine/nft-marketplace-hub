@@ -155,6 +155,21 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
         return items;
     }
 
+    function fetchAllMarketItems() public view returns (MarketItem[] memory) {
+        uint totalItemCount = _tokenIds.current();
+        uint currentIndex = 0;
+
+        // Compter tous les items créés (pas seulement en vente)
+        MarketItem[] memory items = new MarketItem[](totalItemCount);
+        for (uint i = 0; i < totalItemCount; i++) {
+            uint currentId = i + 1;
+            MarketItem storage currentItem = idToMarketItem[currentId];
+            items[currentIndex] = currentItem;
+            currentIndex += 1;
+        }
+        return items;
+    }
+
     function fetchMyNFTs() public view returns (MarketItem[] memory) {
         uint totalItemCount = _tokenIds.current();
         uint itemCount = 0;
@@ -183,15 +198,21 @@ contract NFTMarketplace is ERC721URIStorage, ReentrancyGuard {
         uint itemCount = 0;
         uint currentIndex = 0;
 
+        // Premier passage : compter seulement les items encore listés
         for (uint i = 0; i < totalItemCount; i++) {
-            if (idToMarketItem[i + 1].seller == msg.sender) {
+            if (idToMarketItem[i + 1].seller == msg.sender &&
+                idToMarketItem[i + 1].listed &&
+                !idToMarketItem[i + 1].sold) {
                 itemCount += 1;
             }
         }
 
         MarketItem[] memory items = new MarketItem[](itemCount);
+        // Deuxième passage : récupérer seulement les items encore listés
         for (uint i = 0; i < totalItemCount; i++) {
-            if (idToMarketItem[i + 1].seller == msg.sender) {
+            if (idToMarketItem[i + 1].seller == msg.sender &&
+                idToMarketItem[i + 1].listed &&
+                !idToMarketItem[i + 1].sold) {
                 uint currentId = i + 1;
                 MarketItem storage currentItem = idToMarketItem[currentId];
                 items[currentIndex] = currentItem;

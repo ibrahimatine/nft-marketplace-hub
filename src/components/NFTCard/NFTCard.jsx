@@ -1,15 +1,49 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './NFTCard.css';
 import { TrendingUp, Clock, Heart, Eye } from 'lucide-react';
 import { getNFTImageUrl } from '../../utils/ipfsHelpers';
+import { getNFTStats, toggleNFTLike } from '../../services/statsService';
+import { useAppContext } from '../../App';
 
 const NFTCard = ({ nft, badge, onClick }) => {
+  const { walletAddress, isWalletConnected } = useAppContext();
   const [isHovered, setIsHovered] = useState(false);
+  const [stats, setStats] = useState({ views: 0, likes: 0, likedBy: [] });
   const [isLiked, setIsLiked] = useState(false);
 
-  const handleLike = (e) => {
+  // Charger les stats du NFT
+  useEffect(() => {
+    const loadStats = async () => {
+      if (nft?.id || nft?.tokenId) {
+        const nftId = nft.id || nft.tokenId;
+        const nftStats = await getNFTStats(nftId);
+        setStats(nftStats);
+
+        // Vérifier si l'utilisateur actuel a liké
+        if (walletAddress && nftStats.likedBy) {
+          setIsLiked(nftStats.likedBy.includes(walletAddress));
+        }
+      }
+    };
+
+    loadStats();
+  }, [nft, walletAddress]);
+
+  const handleLike = async (e) => {
     e.stopPropagation();
-    setIsLiked(!isLiked);
+
+    if (!isWalletConnected || !walletAddress) {
+      alert('Connectez votre wallet pour liker ce NFT');
+      return;
+    }
+
+    const nftId = nft.id || nft.tokenId;
+    const result = await toggleNFTLike(nftId, walletAddress);
+
+    if (result.success) {
+      setStats(prev => ({ ...prev, likes: result.likes }));
+      setIsLiked(result.isLiked);
+    }
   };
 
   const renderBadge = () => {
@@ -58,11 +92,11 @@ const NFTCard = ({ nft, badge, onClick }) => {
         <div className="nft-card-overlay">
           <button className="nft-card-action" onClick={handleLike}>
             <Heart size={20} fill={isLiked ? '#EF4444' : 'none'} color={isLiked ? '#EF4444' : '#fff'} />
-            <span>{nft.likes + (isLiked ? 1 : 0)}</span>
+            <span>{stats.likes}</span>
           </button>
           <button className="nft-card-action">
             <Eye size={20} />
-            <span>{nft.views}</span>
+            <span>{stats.views}</span>
           </button>
         </div>
       </div>
@@ -70,19 +104,26 @@ const NFTCard = ({ nft, badge, onClick }) => {
       <div className="nft-card-info">
         <div className="nft-card-header">
           <h3 className="nft-card-name">{nft.name}</h3>
-          {nft.forSale && <span className="nft-card-sale-badge">En vente</span>}
+          {nft.forSale && !nft.sold ? (
+            <span className="nft-card-sale-badge">En vente</span>
+          ) : (
+            <span className="nft-card-not-sale-badge">Pas en vente</span>
+          )}
         </div>
-        
+
         <div className="nft-card-token">
           <span className="token-label">Token ID:</span>
           <span className="token-value">#{nft.tokenId || nft.id || 'N/A'}</span>
         </div>
-        
+
         <div className="nft-card-footer">
-          <div className="nft-card-price">
-            <span className="nft-card-price-label">Prix actuel</span>
-            <span className="nft-card-price-value">{nft.price} ETH</span>
-          </div>
+          {/* Afficher le prix seulement si en vente ET pas vendu */}
+          {nft.forSale && !nft.sold && (
+            <div className="nft-card-price">
+              <span className="nft-card-price-label">Prix actuel</span>
+              <span className="nft-card-price-value">{nft.price} ETH</span>
+            </div>
+          )}
           {nft.category && (
             <span className="nft-card-category">{nft.category}</span>
           )}

@@ -7,6 +7,7 @@ const CONTRACT_ADDRESS = contractAddresses.NFTMarketplace;
 // ABI minimal pour les fonctions nécessaires
 const CONTRACT_ABI = [
     "function fetchMarketItems() public view returns (tuple(uint256 tokenId, address seller, address owner, uint256 price, bool sold, bool listed)[])",
+    "function fetchAllMarketItems() public view returns (tuple(uint256 tokenId, address seller, address owner, uint256 price, bool sold, bool listed)[])",
     "function fetchMyNFTs() public view returns (tuple(uint256 tokenId, address seller, address owner, uint256 price, bool sold, bool listed)[])",
     "function fetchItemsListed() public view returns (tuple(uint256 tokenId, address seller, address owner, uint256 price, bool sold, bool listed)[])",
     "function tokenURI(uint256 tokenId) public view returns (string)",
@@ -151,7 +152,10 @@ const processMarketItem = async (contract, item) => {
             description: localNFT ? localNFT.description : (metadata.description || "NFT disponible sur le marketplace"),
             image: localNFT ? localNFT.image : metadata.image,
             price: parseFloat(ethers.utils.formatEther(item.price || 0)),
-            owner: item.owner || 'Inconnu',
+            // Logique d'affichage du propriétaire :
+            // - Si en vente ET pas vendu : afficher le vendeur (celui qui a mis en vente)
+            // - Sinon : afficher le vrai propriétaire
+            owner: (item.listed && !item.sold) ? (item.seller || 'Inconnu') : (item.owner || 'Inconnu'),
             seller: item.seller || 'Inconnu',
             sold: item.sold || false,
             forSale: item.listed || false,
@@ -170,11 +174,11 @@ const processMarketItem = async (contract, item) => {
     }
 };
 
-// Obtenir tous les NFTs du marketplace (LECTURE SEULE)
+// Obtenir tous les NFTs en vente sur le marketplace (LECTURE SEULE)
 export const fetchMarketplaceNFTs = async () => {
     try {
         const { contract } = await getContractReadOnly();
-        
+
         // Test de connectivité simple
         try {
             await contract.getListingPrice();
@@ -183,39 +187,91 @@ export const fetchMarketplaceNFTs = async () => {
             console.warn('Contrat non accessible:', connectError.message);
             return [];
         }
-        
-        const data = await contract.fetchMarketItems();
-        console.log('Données brutes fetchMarketItems:', data);
-        
-        // Filtrer STRICTEMENT les items valides
-        const validItems = data.filter(item => {
+
+        // Utiliser fetchAllMarketItems et filtrer côté client
+        const data = await contract.fetchAllMarketItems();
+        // Filtrer seulement les NFTs en vente (listed = true ET sold = false)
+        const forSaleItems = data.filter(item => item.listed && !item.sold);
+        console.log('Données brutes fetchAllMarketItems:', data);
+        console.log('NFTs en vente filtrés:', forSaleItems);
+
+        // Filtrer STRICTEMENT les items valides EN VENTE
+        const validItems = forSaleItems.filter(item => {
             const tokenId = item.tokenId ? item.tokenId.toNumber() : 0;
             const isListed = item.listed === true;
             const isNotSold = item.sold === false;
             const hasValidId = tokenId > 0;
-            
+
             console.log(`Token ${tokenId}: valid=${hasValidId}, listed=${isListed}, notSold=${isNotSold}`);
-            
+
             return hasValidId && isListed && isNotSold;
         });
-        
-        console.log(`Items valides trouvés: ${validItems.length}`);
-        
+
+        console.log(`NFTs en vente trouvés: ${validItems.length}`);
+
         if (validItems.length === 0) {
-            console.log('Aucun NFT de marketplace valide trouvé');
+            console.log('Aucun NFT en vente trouvé');
             return [];
         }
-        
+
         const items = await Promise.all(
             validItems.map(item => processMarketItem(contract, item))
         );
-        
+
         const finalItems = items.filter(item => item !== null);
-        console.log(`Items finaux traités: ${finalItems.length}`);
-        
+        console.log(`NFTs en vente traités: ${finalItems.length}`);
+
         return finalItems;
     } catch (error) {
         console.error('Erreur fetchMarketplaceNFTs:', error);
+        return [];
+    }
+};
+
+// Obtenir TOUS les NFTs qui ont existé dans le marketplace (LECTURE SEULE)
+export const fetchAllMarketplaceNFTs = async () => {
+    try {
+        const { contract } = await getContractReadOnly();
+
+        // Test de connectivité simple
+        try {
+            await contract.getListingPrice();
+            console.log('Contrat accessible pour fetchAllMarketItems');
+        } catch (connectError) {
+            console.warn('Contrat non accessible:', connectError.message);
+            return [];
+        }
+
+        const data = await contract.fetchAllMarketItems();
+        console.log('Données brutes fetchAllMarketItems (historique complet):', data);
+
+        // Filtrer seulement les items avec des token IDs valides
+        const validItems = data.filter(item => {
+            const tokenId = item.tokenId ? item.tokenId.toNumber() : 0;
+            const hasValidId = tokenId > 0;
+
+            console.log(`Token ${tokenId}: valid=${hasValidId}, listed=${item.listed}, sold=${item.sold}`);
+
+            return hasValidId;
+        });
+
+        console.log(`Total NFTs marketplace trouvés: ${validItems.length}`);
+
+        if (validItems.length === 0) {
+            console.log('Aucun NFT marketplace trouvé');
+            return [];
+        }
+
+        const items = await Promise.all(
+            validItems.map(item => processMarketItem(contract, item))
+        );
+
+        const finalItems = items.filter(item => item !== null);
+        console.log(`Total NFTs marketplace traités: ${finalItems.length}`);
+
+        return finalItems;
+    } catch (error) {
+        console.error('Erreur fetchAllMarketplaceNFTs:', error);
         return [];
     }
 };
@@ -254,29 +310,54 @@ export const fetchUserNFTs = async (userAddress) => {
 export const fetchUserListedNFTs = async () => {
     try {
         const { contract } = await getContract();
+
+        // Vérifier d'abord que le contrat a la fonction
+        if (!contract.fetchItemsListed) {
+            console.warn('fetchItemsListed non disponible sur le contrat');
+            return [];
+        }
+
         const data = await contract.fetchItemsListed();
-        
+
         console.log('Données fetchItemsListed:', data);
-        
-        // Filtrer les items valides
+
+        // Si pas de données, retourner un tableau vide
+        if (!data || data.length === 0) {
+            console.log('Aucun NFT listé trouvé');
+            return [];
+        }
+
+        // Filtrer STRICTEMENT les items valides ET encore en vente
         const validItems = data.filter(item => {
             const tokenId = item.tokenId ? item.tokenId.toNumber() : 0;
             const isListed = item.listed === true;
-            return tokenId > 0 && isListed;
+            const isNotSold = item.sold === false;
+
+            console.log(`Token ${tokenId}: valid=${tokenId > 0}, listed=${isListed}, notSold=${isNotSold}`);
+
+            return tokenId > 0 && isListed && isNotSold;
         });
-        
+
         if (validItems.length === 0) {
             console.log('Aucun NFT listé valide trouvé');
             return [];
         }
-        
+
         const items = await Promise.all(
             validItems.map(item => processMarketItem(contract, item))
         );
-        
+
         return items.filter(item => item !== null);
     } catch (error) {
         console.error('Erreur fetchUserListedNFTs:', error);
+
+        // Si c'est une erreur de revert, c'est probablement normal (pas de NFTs listés)
+        if (error.code === 'CALL_EXCEPTION') {
+            console.log('Aucun NFT listé par cet utilisateur (contrat revert normal)');
+            return [];
+        }
+
+        // Pour les autres erreurs, les logger mais retourner un tableau vide
         return [];
     }
 };
@@ -316,7 +397,6 @@ export const buyNFT = async (tokenId, price) => {
         console.log('Acheteur:', buyerAddress);
         console.log('Solde:', ethers.utils.formatEther(balance), 'ETH');
         console.log('Prix requis:', price, 'ETH');
-        console.log('Prix en Wei:', priceInWei.toString());
 
         // Vérifier si l'acheteur a assez d'ETH (avec marge pour le gas)
         const gasEstimate = ethers.utils.parseEther('0.01'); // Estimation conservative du gas
@@ -513,7 +593,10 @@ export const getNFTDetails = async (tokenId) => {
             description: localNFT ? localNFT.description : (metadata.description || ""),
             image: localNFT ? localNFT.image : metadata.image, // Utiliser la vraie image si disponible
             price: marketItem ? parseFloat(ethers.utils.formatEther(marketItem.price)) : 0,
-            owner: marketItem ? marketItem.owner : creator,
+            // Même logique d'affichage du propriétaire pour les détails
+            owner: marketItem && marketItem.listed && !marketItem.sold
+                ? marketItem.seller
+                : (marketItem ? marketItem.owner : creator),
             seller: marketItem ? marketItem.seller : null,
             creator: creator || 'Inconnu',
             sold: marketItem ? marketItem.sold : false,

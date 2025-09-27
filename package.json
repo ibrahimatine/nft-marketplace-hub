@@ -2,7 +2,9 @@
   "name": "nft-marketplace",
   "version": "0.0.0",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently \"vite\" \"cd server && npm start\"",
+    "dev:frontend": "vite",
+    "dev:server": "cd server && npm start",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -10,6 +12,7 @@
     "@nomiclabs/hardhat-ethers": "^2.2.3",
     "@nomiclabs/hardhat-waffle": "^2.0.6",
     "chai": "^4.5.0",
+    "concurrently": "^9.2.1",
     "ethereum-waffle": "^4.0.10",
     "hardhat": "^2.19.4"
   },
