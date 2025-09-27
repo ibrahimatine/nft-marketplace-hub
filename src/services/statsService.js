@@ -81,6 +81,45 @@ export const getAllStats = async () => {
     }
 };
 
+// Enregistrer une vente récente
+export const recordSale = async (nftId, price, buyer, seller) => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/nft/${nftId}/sale`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ price, buyer, seller }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Erreur réseau');
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Erreur recordSale:', error);
+        return { success: false };
+    }
+};
+
+// Obtenir les recommandations NFT pour la page d'accueil
+export const getRecommendations = async () => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/recommendations`);
+
+        if (!response.ok) {
+            throw new Error('Erreur réseau');
+        }
+
+        const data = await response.json();
+        return data.recommendations || [];
+    } catch (error) {
+        console.error('Erreur getRecommendations:', error);
+        return [];
+    }
+};
+
 // Reset toutes les stats
 export const resetAllStats = async () => {
     try {

@@ -1,4 +1,5 @@
 import { ethers } from 'ethers';
+import { recordSale } from '../services/statsService';
 
 // Adresse de votre contrat déployé
 import contractAddresses from '../contracts/contract-address.json';
@@ -425,7 +426,15 @@ export const buyNFT = async (tokenId, price) => {
         const receipt = await transaction.wait();
         console.log('✅ Achat confirmé !');
 
-        // 4. Enregistrer la transaction dans l'historique
+        // 4. Enregistrer la vente sur le serveur pour les recommandations
+        try {
+            await recordSale(tokenId, price, buyerAddress, seller);
+            console.log('🎯 Vente enregistrée pour les recommandations');
+        } catch (error) {
+            console.warn('Erreur enregistrement vente pour recommandations:', error);
+        }
+
+        // 5. Enregistrer la transaction dans l'historique
         const transactionRecord = {
             id: `tx-${Date.now()}`,
             type: 'purchase',

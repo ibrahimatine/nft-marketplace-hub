@@ -16,6 +16,9 @@ const DATA_FILE = path.join(__dirname, 'nft-stats.json');
 // Cache en mémoire pour les timers de vues (10 secondes par utilisateur/NFT)
 const viewTimers = new Map(); // key: "nftId-userAddress", value: timestamp
 
+// Cache pour les ventes récentes (dernières 24h)
+const recentSales = new Map(); // key: nftId, value: { price, timestamp, buyer, seller }
+
 // Initialiser le fichier de données s'il n'existe pas
 const initializeDataFile = async () => {
     try {
@@ -187,6 +190,113 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
+// POST - Enregistrer une vente récente
+app.post('/api/nft/:id/sale', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { price, buyer, seller } = req.body;
+
+        if (!price || !buyer || !seller) {
+            return res.status(400).json({ error: 'Prix, acheteur et vendeur requis' });
+        }
+
+        const saleData = {
+            price: parseFloat(price),
+            timestamp: Date.now(),
+            buyer,
+            seller
+        };
+
+        recentSales.set(id, saleData);
+        console.log(`💰 Vente enregistrée: NFT ${id} vendu ${price} ETH de ${seller} à ${buyer}`);
+
+        res.json({ success: true, sale: saleData });
+    } catch (error) {
+        console.error('Erreur POST sale:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+// GET - Obtenir les NFTs recommandés pour la page d'accueil
+app.get('/api/recommendations', async (req, res) => {
+    try {
+        const data = await readData();
+        const recommendations = [];
+
+        // 1. NFT vendu le plus cher dans les dernières 24h
+        let highestSale = null;
+        const now = Date.now();
+        const oneDayAgo = now - (24 * 60 * 60 * 1000);
+
+        for (const [nftId, sale] of recentSales.entries()) {
+            if (sale.timestamp > oneDayAgo) {
+                if (!highestSale || sale.price > highestSale.price) {
+                    highestSale = { nftId, ...sale };
+                }
+            }
+        }
+
+        if (highestSale) {
+            recommendations.push({
+                nftId: highestSale.nftId,
+                reason: 'highest_sale_24h',
+                price: highestSale.price,
+                priority: 1
+            });
+        }
+
+        // 2. NFT le plus liké
+        let mostLiked = null;
+        for (const [nftId, stats] of Object.entries(data.nfts)) {
+            if (stats.likes > 0) {
+                if (!mostLiked || stats.likes > mostLiked.likes) {
+                    mostLiked = { nftId, likes: stats.likes };
+                }
+            }
+        }
+
+        // 3. Si le NFT le plus liké est le même que le plus vendu, prendre le 2e plus liké
+        if (mostLiked) {
+            const isAlreadyAdded = recommendations.some(r => r.nftId === mostLiked.nftId);
+
+            if (isAlreadyAdded) {
+                // Chercher le 2e plus liké
+                let secondMostLiked = null;
+                for (const [nftId, stats] of Object.entries(data.nfts)) {
+                    if (nftId !== mostLiked.nftId && stats.likes > 0) {
+                        if (!secondMostLiked || stats.likes > secondMostLiked.likes) {
+                            secondMostLiked = { nftId, likes: stats.likes };
+                        }
+                    }
+                }
+
+                if (secondMostLiked) {
+                    recommendations.push({
+                        nftId: secondMostLiked.nftId,
+                        reason: 'second_most_liked',
+                        likes: secondMostLiked.likes,
+                        priority: 2
+                    });
+                }
+            } else {
+                recommendations.push({
+                    nftId: mostLiked.nftId,
+                    reason: 'most_liked',
+                    likes: mostLiked.likes,
+                    priority: 2
+                });
+            }
+        }
+
+        console.log(`🎯 Recommandations générées: ${recommendations.length} NFTs`);
+        res.json({ recommendations });
+
+    } catch (error) {
+        console.error('Erreur GET recommendations:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
 // DELETE - Reset toutes les stats
 app.delete('/api/stats/reset', async (req, res) => {
     try {
@@ -195,6 +305,7 @@ app.delete('/api/stats/reset', async (req, res) => {
             lastUpdated: new Date().toISOString()
         };
         await writeData(data);
+        recentSales.clear(); // Reset aussi les ventes récentes
         console.log('🧹 Stats réinitialisées');
         res.json({ success: true, message: 'Stats réinitialisées' });
     } catch (error) {
@@ -203,9 +314,37 @@ app.delete('/api/stats/reset', async (req, res) => {
     }
 });
 
+// Ajouter des données de test pour les ventes récentes
+const addTestSales = () => {
+    const now = Date.now();
+    const oneHourAgo = now - (1 * 60 * 60 * 1000); // Il y a 1 heure
+    const twoHoursAgo = now - (2 * 60 * 60 * 1000); // Il y a 2 heures
+
+    // Vente fictive : NFT #2 vendu pour 2.5 ETH il y a 1 heure
+    recentSales.set('2', {
+        price: 2.5,
+        timestamp: oneHourAgo,
+        buyer: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
+        seller: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8'
+    });
+
+    // Vente fictive : NFT #1 vendu pour 1.8 ETH il y a 2 heures
+    recentSales.set('1', {
+        price: 1.8,
+        timestamp: twoHoursAgo,
+        buyer: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+        seller: '0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65'
+    });
+
+    console.log('📦 Données de test ajoutées: 2 ventes récentes');
+    console.log('💰 NFT #2: 2.5 ETH (il y a 1h)');
+    console.log('💰 NFT #1: 1.8 ETH (il y a 2h)');
+};
+
 // Démarrer le serveur
 const startServer = async () => {
     await initializeDataFile();
+    addTestSales(); // Ajouter des données de test
     app.listen(PORT, () => {
         console.log(`🚀 Serveur NFT Stats démarré sur le port ${PORT}`);
         console.log(`📊 API disponible sur http://localhost:${PORT}/api`);

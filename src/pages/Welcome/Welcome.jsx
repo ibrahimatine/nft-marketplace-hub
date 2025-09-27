@@ -4,8 +4,9 @@ import './Welcome.css';
 import NFTCard from '../../components/NFTCard/NFTCard';
 import { Search, ArrowRight, Users, Package, TrendingUp } from 'lucide-react';
 import { useAppContext } from '../../App';
-import { fetchMarketplaceNFTs } from '../../utils/contract';
+import { fetchMarketplaceNFTs, fetchAllMarketplaceNFTs } from '../../utils/contract';
 import { getSubmittedNFTs } from '../../utils/storage';
+import { getRecommendations } from '../../services/statsService';
 
 const Welcome = () => {
   const navigate = useNavigate();
@@ -27,97 +28,103 @@ const Welcome = () => {
 
   const loadWelcomeData = async () => {
     setLoading(true);
-    
+
     try {
-      // 1. Charger les NFTs de la blockchain
-      const blockchainNFTs = await fetchMarketplaceNFTs().catch(err => {
-        console.warn('Erreur chargement blockchain:', err);
+      // 1. Obtenir les recommandations du serveur
+      const recommendations = await getRecommendations();
+      console.log('Recommandations reçues:', recommendations);
+
+      // 2. Charger TOUS les NFTs de la blockchain pour chercher les recommandés
+      const allBlockchainNFTs = await fetchAllMarketplaceNFTs().catch(err => {
+        console.warn('Erreur chargement blockchain complète:', err);
         return [];
       });
 
-      // 2. Charger les NFTs locaux
+      // 3. Charger les NFTs locaux comme fallback
       const localNFTs = getSubmittedNFTs();
 
-      // 3. IMPORTANT: Filtrer les doublons
-      // On garde uniquement les NFTs locaux qui n'ont pas de correspondance blockchain
-      const localOnlyNFTs = localNFTs.filter(localNFT => {
-        // Si le NFT local a un transactionHash ou tokenId, vérifier s'il existe dans blockchain
-        if (localNFT.transactionHash || localNFT.tokenId) {
-          return !blockchainNFTs.some(blockchainNFT => 
-            blockchainNFT.id === localNFT.tokenId ||
-            blockchainNFT.transactionHash === localNFT.transactionHash
-          );
-        }
-        // Si c'est un NFT purement local (sans blockchain), on le garde
-        return true;
-      });
-
-      // 4. Combiner les NFTs sans doublons
+      // 4. Combiner toutes les sources
       const allNFTs = [
-        ...blockchainNFTs.map(nft => ({ 
-          ...nft, 
+        ...allBlockchainNFTs.map(nft => ({
+          ...nft,
           source: 'blockchain',
-          // S'assurer que l'image blockchain est utilisée
           image: nft.image || nft.imageUrl || '/placeholder-nft.jpg'
         })),
-        ...localOnlyNFTs.map(nft => ({ 
-          ...nft, 
+        ...localNFTs.map(nft => ({
+          ...nft,
           source: 'local',
-          // Utiliser l'image locale (base64)
-          image: nft.image || nft.imageDataUrl || nft.imagePreview
+          image: nft.image || nft.imageDataUrl || nft.imagePreview,
+          id: nft.id || `local-${Date.now()}`
         }))
       ];
 
-      // Vérifier qu'il n'y a pas de doublons par nom et description
-      const uniqueNFTs = allNFTs.reduce((acc, current) => {
-        const isDuplicate = acc.some(item => 
-          item.name === current.name && 
-          item.description === current.description &&
-          item.source !== current.source // Garder seulement si sources différentes
-        );
-        
-        if (!isDuplicate) {
-          acc.push(current);
-        } else if (current.source === 'blockchain') {
-          // Si doublon, préférer la version blockchain
-          const index = acc.findIndex(item => 
-            item.name === current.name && 
-            item.description === current.description
-          );
-          if (index !== -1 && acc[index].source === 'local') {
-            acc[index] = current; // Remplacer le local par le blockchain
-          }
-        }
-        
-        return acc;
-      }, []);
+      // 5. Sélectionner les NFTs recommandés
+      let featured = [];
 
-      // 5. Sélectionner les NFTs en vedette (sans doublons)
-      const featured = uniqueNFTs
-        .filter(nft => nft.forSale || nft.source === 'local')
-        .slice(0, 4);
+      // Chercher les NFTs recommandés dans toutes les sources
+      for (const recommendation of recommendations) {
+        const foundNFT = allNFTs.find(nft =>
+          nft.id === recommendation.nftId ||
+          nft.id === parseInt(recommendation.nftId) ||
+          (nft.source === 'local' && nft.id.includes(recommendation.nftId))
+        );
+
+        if (foundNFT) {
+          featured.push({
+            ...foundNFT,
+            recommendationReason: recommendation.reason,
+            recommendationData: recommendation
+          });
+        }
+      }
+
+      // 6. Si moins de 2 NFTs recommandés, compléter avec des NFTs aléatoires
+      if (featured.length < 2) {
+        console.log('Pas assez de recommandations, ajout de NFTs aléatoires');
+
+        // Filtrer les NFTs déjà sélectionnés
+        const availableNFTs = allNFTs.filter(nft =>
+          !featured.some(f => f.id === nft.id) &&
+          (nft.forSale || nft.source === 'local')
+        );
+
+        // Mélanger et prendre les premiers
+        const shuffled = availableNFTs.sort(() => Math.random() - 0.5);
+        const needed = 2 - featured.length;
+        const randomNFTs = shuffled.slice(0, needed).map(nft => ({
+          ...nft,
+          recommendationReason: 'random',
+          recommendationData: { reason: 'random', priority: 99 }
+        }));
+
+        featured = [...featured, ...randomNFTs];
+      }
+
+      // 7. Limiter à 2 NFTs maximum
+      featured = featured.slice(0, 2);
 
       setFeaturedNFTs(featured);
 
-      // 6. Calculer les statistiques
-      const totalVolume = blockchainNFTs.reduce((sum, nft) => sum + (nft.price || 0), 0);
+      // 8. Calculer les statistiques
+      const totalVolume = allBlockchainNFTs.reduce((sum, nft) => sum + (parseFloat(nft.price) || 0), 0);
       const uniqueOwners = new Set([
-        ...blockchainNFTs.map(nft => nft.owner),
-        ...localOnlyNFTs.map(nft => nft.owner || 'local-user')
+        ...allBlockchainNFTs.map(nft => nft.owner),
+        ...localNFTs.map(nft => nft.owner || 'local-user')
       ]).size;
 
       setMarketStats({
-        totalNFTs: uniqueNFTs.length,
+        totalNFTs: allNFTs.length,
         totalUsers: uniqueOwners,
         totalVolume: totalVolume.toFixed(1),
-        blockchainNFTs: blockchainNFTs.length,
-        localNFTs: localOnlyNFTs.length
+        blockchainNFTs: allBlockchainNFTs.length,
+        localNFTs: localNFTs.length
       });
 
-      console.log('NFTs chargés:', {
-        blockchain: blockchainNFTs.length,
-        local: localOnlyNFTs.length,
-        total: uniqueNFTs.length,
+      console.log('Données chargées:', {
+        recommendations: recommendations.length,
+        blockchain: allBlockchainNFTs.length,
+        local: localNFTs.length,
+        total: allNFTs.length,
         featured: featured.length
       });
 
@@ -126,19 +133,20 @@ const Welcome = () => {
       
       // En cas d'erreur, utiliser uniquement les données locales
       const localNFTs = getSubmittedNFTs();
-      const uniqueLocalNFTs = localNFTs.map(nft => ({ 
-        ...nft, 
+      const fallbackNFTs = localNFTs.map(nft => ({
+        ...nft,
         source: 'local',
-        image: nft.image || nft.imageDataUrl || nft.imagePreview
+        image: nft.image || nft.imageDataUrl || nft.imagePreview,
+        recommendationReason: 'fallback'
       }));
-      
-      setFeaturedNFTs(uniqueLocalNFTs.slice(0, 4));
+
+      setFeaturedNFTs(fallbackNFTs.slice(0, 2)); // Limité à 2 NFTs
       setMarketStats({
-        totalNFTs: uniqueLocalNFTs.length,
+        totalNFTs: fallbackNFTs.length,
         totalUsers: 1,
         totalVolume: 0,
         blockchainNFTs: 0,
-        localNFTs: uniqueLocalNFTs.length
+        localNFTs: fallbackNFTs.length
       });
     } finally {
       setLoading(false);
@@ -229,15 +237,15 @@ const Welcome = () => {
       {/* Featured NFTs Section */}
       <section className="welcome-featured">
         <div className="container">
-          <h2 className="section-title">NFTs en Vedette</h2>
+          <h2 className="section-title">NFTs Recommandés</h2>
           <p className="section-subtitle">
-            Découvrez les dernières créations de notre communauté
+            NFT le plus vendu des dernières 24h et le plus aimé de la communauté
           </p>
           
           {loading && (
             <div className="featured-loading">
               <div className="loading-grid">
-                {[1, 2, 3, 4].map(i => (
+                {[1, 2].map(i => (
                   <div key={i} className="loading-card">
                     <div className="loading-image"></div>
                     <div className="loading-text"></div>
@@ -251,18 +259,23 @@ const Welcome = () => {
             <div className="featured-grid">
               {featuredNFTs.map((nft, index) => (
                 <div key={`${nft.source}-${nft.id}-${index}`} className="featured-item">
-                  <NFTCard 
+                  <NFTCard
                     nft={{
                       ...nft,
-                      // S'assurer que l'image est correctement passée
                       image: nft.image || nft.imageDataUrl || nft.imagePreview || '/placeholder-nft.jpg'
-                    }} 
+                    }}
                     badge={
-                      nft.source === 'local' 
-                        ? { type: 'new', text: 'Local' }
-                        : nft.forSale 
-                          ? { type: 'trending', text: 'En vente' }
-                          : null
+                      nft.recommendationReason === 'highest_sale_24h'
+                        ? { type: 'trending', text: `💰 Vendu ${nft.recommendationData?.price || 0} ETH` }
+                        : nft.recommendationReason === 'most_liked' || nft.recommendationReason === 'second_most_liked'
+                          ? { type: 'new', text: `❤️ ${nft.recommendationData?.likes || 0} likes` }
+                          : nft.recommendationReason === 'random'
+                            ? { type: 'trending', text: '🎲 Découverte' }
+                            : nft.source === 'local'
+                              ? { type: 'new', text: 'Local' }
+                              : nft.forSale
+                                ? { type: 'trending', text: 'En vente' }
+                                : null
                     }
                     onClick={handleNFTClick}
                   />
