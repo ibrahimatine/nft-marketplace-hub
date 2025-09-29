@@ -2,11 +2,15 @@
   "name": "nft-marketplace",
   "version": "0.0.0",
   "scripts": {
-    "dev": "concurrently \"vite\" \"cd server && npm start\"",
+    "dev": "concurrently \"vite\" \"cd server && npm start\" \"npm run update-readme-watch\"",
     "dev:frontend": "vite",
     "dev:server": "cd server && npm start",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "update-readme-stats": "node scripts/updateReadmeStats.js",
+    "update-readme-watch": "nodemon -w server/nft-stats.json --exec \"npm run update-readme-stats\"",
+    "install-git-hooks": "node scripts/installGitHooks.js",
+    "postinstall": "npm run install-git-hooks"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
@@ -14,7 +18,8 @@
     "chai": "^4.5.0",
     "concurrently": "^9.2.1",
     "ethereum-waffle": "^4.0.10",
-    "hardhat": "^2.19.4"
+    "hardhat": "^2.19.4",
+    "nodemon": "^3.1.10"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.9.6",

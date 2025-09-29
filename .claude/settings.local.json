@@ -19,7 +19,9 @@
       "Bash(tasklist)",
       "Bash(python:*)",
       "Bash(tasklist:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(npm run update-readme-stats:*)",
+      "Bash(npm run:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs-extra');
 const path = require('path');
+const { ethers } = require('ethers');
 
 const app = express();
 const PORT = 3000;
@@ -196,6 +197,96 @@ app.get('/api/stats', async (req, res) => {
     } catch (error) {
         console.error('Erreur GET all stats:', error);
         res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+// GET - Récupérer les statistiques complètes du marketplace (blockchain + local)
+app.get('/api/marketplace-stats', async (req, res) => {
+    try {
+        console.log('📊 Récupération des stats marketplace...');
+
+        // Lire les stats locales
+        const localData = await readData();
+
+        // Statistiques par défaut
+        let stats = {
+            totalNFTs: 0,
+            blockchainNFTs: 0,
+            localNFTs: 0,
+            nftsForSale: 0,
+            totalUsers: 0,
+            totalVolume: '0 ETH',
+            contractAddress: localData.contractAddress,
+            lastUpdated: new Date().toISOString()
+        };
+
+        try {
+            // Si on a une adresse de contrat, récupérer les stats blockchain
+            if (localData.contractAddress) {
+                console.log('🔗 Connexion à la blockchain...');
+
+                // Configuration blockchain
+                const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+
+                // Charger le contrat
+                const contractAbiPath = path.join(__dirname, '..', 'artifacts', 'contracts', 'NFTMarketplace.sol', 'NFTMarketplace.json');
+                const contractAbi = JSON.parse(await fs.readFile(contractAbiPath, 'utf8')).abi;
+                const contract = new ethers.Contract(localData.contractAddress, contractAbi, provider);
+
+                // Récupérer les NFTs de la blockchain
+                console.log('📦 Récupération des NFTs blockchain...');
+                const marketItems = await contract.fetchMarketItems();
+                const allItems = await contract.fetchAllMarketplaceNFTs ? await contract.fetchAllMarketplaceNFTs() : marketItems;
+
+                // Calculer les stats blockchain
+                const blockchainNFTs = allItems.length;
+                const nftsForSale = marketItems.filter(item => item.price > 0).length;
+
+                console.log(`✅ ${blockchainNFTs} NFTs blockchain, ${nftsForSale} en vente`);
+
+                stats.blockchainNFTs = blockchainNFTs;
+                stats.nftsForSale = nftsForSale;
+            }
+        } catch (blockchainError) {
+            console.warn('⚠️ Erreur blockchain, utilisation des données locales uniquement:', blockchainError.message);
+            stats.nftsForSale = 0; // Fallback
+        }
+
+        // Statistiques locales (localStorage simulé côté serveur)
+        // Note: Les NFTs locaux sont gérés côté client, on ne peut pas les compter ici
+        // Mais on peut estimer basé sur les stats d'accès
+        const localNFTsFromStats = Object.keys(localData.nfts || {}).filter(id => id.startsWith('local-')).length;
+        stats.localNFTs = localNFTsFromStats;
+
+        // Total
+        stats.totalNFTs = stats.blockchainNFTs + stats.localNFTs;
+
+        // Utilisateurs uniques (basé sur les likes)
+        const uniqueUsers = new Set();
+        Object.values(localData.nfts || {}).forEach(nft => {
+            if (nft.likedBy && Array.isArray(nft.likedBy)) {
+                nft.likedBy.forEach(user => uniqueUsers.add(user));
+            }
+        });
+        stats.totalUsers = uniqueUsers.size;
+
+        console.log('📈 Stats calculées:', stats);
+        res.json(stats);
+
+    } catch (error) {
+        console.error('❌ Erreur marketplace stats:', error);
+        res.status(500).json({
+            error: 'Erreur serveur',
+            stats: {
+                totalNFTs: 0,
+                blockchainNFTs: 0,
+                localNFTs: 0,
+                nftsForSale: 0,
+                totalUsers: 0,
+                totalVolume: '0 ETH',
+                lastUpdated: new Date().toISOString()
+            }
+        });
     }
 });
 

@@ -6,6 +6,7 @@ import { Search, ArrowRight, Users, Package, TrendingUp } from 'lucide-react';
 import { useAppContext } from '../../App';
 import { fetchMarketplaceNFTs, fetchAllMarketplaceNFTs } from '../../utils/contract';
 import { getSubmittedNFTs } from '../../utils/storage';
+import { getCachedMarketplaceStats } from '../../services/marketplaceStatsService';
 import { getRecommendations } from '../../services/statsService';
 
 const Welcome = () => {
@@ -112,12 +113,18 @@ const Welcome = () => {
         ...localNFTs.map(nft => nft.owner || 'local-user')
       ]).size;
 
+      // 7. Récupérer les stats depuis le serveur (avec données blockchain en temps réel)
+      console.log('📊 Récupération des stats depuis le serveur...');
+      const serverStats = await getCachedMarketplaceStats();
+
       setMarketStats({
-        totalNFTs: allNFTs.length,
-        totalUsers: uniqueOwners,
-        totalVolume: totalVolume.toFixed(1),
-        blockchainNFTs: allBlockchainNFTs.length,
-        localNFTs: localNFTs.length
+        totalNFTs: serverStats.totalNFTs,
+        totalUsers: serverStats.totalUsers,
+        totalVolume: serverStats.totalVolume,
+        blockchainNFTs: serverStats.blockchainNFTs,
+        localNFTs: serverStats.localNFTs,
+        nftsForSale: serverStats.nftsForSale, // Nouvelle stat !
+        source: serverStats.source
       });
 
       console.log('Données chargées:', {
@@ -141,13 +148,23 @@ const Welcome = () => {
       }));
 
       setFeaturedNFTs(fallbackNFTs.slice(0, 2)); // Limité à 2 NFTs
-      setMarketStats({
-        totalNFTs: fallbackNFTs.length,
-        totalUsers: 1,
-        totalVolume: 0,
-        blockchainNFTs: 0,
-        localNFTs: fallbackNFTs.length
-      });
+
+      // Essayer de récupérer les stats du serveur même en cas d'erreur de NFTs
+      try {
+        const serverStats = await getCachedMarketplaceStats();
+        setMarketStats(serverStats);
+      } catch (statsError) {
+        console.warn('Impossible de récupérer les stats serveur:', statsError);
+        setMarketStats({
+          totalNFTs: fallbackNFTs.length,
+          totalUsers: 1,
+          totalVolume: '0 ETH',
+          blockchainNFTs: 0,
+          localNFTs: fallbackNFTs.length,
+          nftsForSale: 0,
+          source: 'fallback'
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -350,7 +367,7 @@ const Welcome = () => {
                   <span className="summary-label">NFTs locaux</span>
                 </div>
                 <div className="summary-item">
-                  <span className="summary-number">{featuredNFTs.filter(n => n.forSale).length}</span>
+                  <span className="summary-number">{marketStats.nftsForSale || 0}</span>
                   <span className="summary-label">En vente</span>
                 </div>
               </div>

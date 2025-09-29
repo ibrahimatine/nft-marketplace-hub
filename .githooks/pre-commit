@@ -1,0 +1,22 @@
+#!/bin/sh
+# Git hook pour mettre à jour automatiquement les statistiques du README avant chaque commit
+
+echo "🔄 Mise à jour automatique des statistiques du README..."
+
+# Vérifier si le serveur est accessible
+if curl -sf http://localhost:3000/api/marketplace-stats > /dev/null 2>&1; then
+    echo "✅ Serveur accessible, mise à jour des stats..."
+
+    # Exécuter le script de mise à jour
+    npm run update-readme-stats
+
+    # Ajouter le README modifié au commit
+    git add README.md
+
+    echo "✅ README.md mis à jour et ajouté au commit"
+else
+    echo "⚠️ Serveur non accessible - pas de mise à jour des stats"
+    echo "💡 Démarrez le serveur avec 'npm run dev' pour des stats automatiques"
+fi
+
+echo "✅ Pre-commit hook terminé"
