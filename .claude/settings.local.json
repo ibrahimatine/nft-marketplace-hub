@@ -16,7 +16,10 @@
       "Bash(findstr:*)",
       "Bash(curl:*)",
       "WebFetch(domain:localhost)",
-      "Bash(tasklist)"
+      "Bash(tasklist)",
+      "Bash(python:*)",
+      "Bash(tasklist:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

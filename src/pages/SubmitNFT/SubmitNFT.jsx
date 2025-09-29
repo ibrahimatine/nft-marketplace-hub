@@ -31,12 +31,21 @@ const SubmitNFT = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: 'Digital Art',
+    category: categories.filter(cat => cat !== 'Tous')[0] || 'Digital Art',
     price: '',
     forSale: false,
     image: null,
     imagePreview: null
   });
+
+  // Debug: afficher la catégorie par défaut
+  useEffect(() => {
+    const defaultCategory = categories.filter(cat => cat !== 'Tous')[0] || 'Digital Art';
+    console.log('=== DEBUG INITIALISATION ===');
+    console.log('Catégories disponibles:', categories);
+    console.log('Catégorie par défaut:', defaultCategory);
+    console.log('formData.category initial:', formData.category);
+  }, []);
   
   const [errors, setErrors] = useState({});
 
@@ -151,11 +160,19 @@ const SubmitNFT = () => {
   // Handle input change
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+
+    if (name === 'category') {
+      console.log('=== DEBUG CHANGEMENT CATÉGORIE ===');
+      console.log('Ancienne catégorie:', formData.category);
+      console.log('Nouvelle catégorie:', value);
+      console.log('Type du select:', type);
+    }
+
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
@@ -192,6 +209,11 @@ const SubmitNFT = () => {
 const handleSubmit = async (e) => {
   e.preventDefault();
 
+  console.log('=== DEBUG SOUMISSION NFT ===');
+  console.log('formData complet:', formData);
+  console.log('Catégorie sélectionnée:', formData.category);
+  console.log('Type de la catégorie:', typeof formData.category);
+
   const validationErrors = validateForm();
   if (Object.keys(validationErrors).length > 0) {
     setErrors(validationErrors);
@@ -224,7 +246,7 @@ const handleSubmit = async (e) => {
         ]
       };
 
-      const tokenURI = await uploadCompleteNFT(nftData);
+      const { tokenURI } = await uploadCompleteNFT(nftData);
       console.log('NFT uploadé sur IPFS, Token URI:', tokenURI);
 
       // Vérifier et corriger le prix
@@ -405,8 +427,9 @@ const handleSubmit = async (e) => {
           ]
         };
 
-        const tokenURI = await uploadCompleteNFT(nftData);
+        const { tokenURI, imageURI } = await uploadCompleteNFT(nftData);
         console.log('NFT uploadé sur IPFS en mode local, Token URI:', tokenURI);
+        console.log('Image URI:', imageURI);
 
         const savedNFTData = {
           name: formData.name,
@@ -414,8 +437,8 @@ const handleSubmit = async (e) => {
           category: formData.category,
           price: 0,
           forSale: false,
-          image: formData.imageDataUrl, // Image locale pour l'affichage
-          ipfsTokenURI: tokenURI, // URI IPFS pour référence
+          image: imageURI, // URI IPFS pour l'image directe
+          ipfsTokenURI: tokenURI, // URI IPFS pour les métadonnées
           likes: 0,
           views: 0,
           owner: 'Vous',
@@ -425,8 +448,13 @@ const handleSubmit = async (e) => {
           blockchainStatus: 'local-ipfs'
         };
 
+        console.log('=== DEBUG SAUVEGARDE LOCALE AVEC IPFS ===');
+        console.log('savedNFTData avant sauvegarde:', savedNFTData);
+        console.log('Catégorie dans savedNFTData:', savedNFTData.category);
+
         const savedNFT = saveSubmittedNFT(savedNFTData);
         console.log('NFT sauvegardé localement avec IPFS:', savedNFT);
+        console.log('Catégorie après sauvegarde:', savedNFT?.category);
 
         setSubmittedNFT(savedNFT);
         setSubmitted(true);
@@ -451,8 +479,13 @@ const handleSubmit = async (e) => {
           blockchainStatus: 'local-only'
         };
 
+        console.log('=== DEBUG SAUVEGARDE LOCALE FALLBACK ===');
+        console.log('fallbackNFTData avant sauvegarde:', fallbackNFTData);
+        console.log('Catégorie dans fallbackNFTData:', fallbackNFTData.category);
+
         const savedNFT = saveSubmittedNFT(fallbackNFTData);
         console.log('NFT sauvegardé localement uniquement:', savedNFT);
+        console.log('Catégorie après sauvegarde fallback:', savedNFT?.category);
 
         setSubmittedNFT(savedNFT);
         setSubmitted(true);

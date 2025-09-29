@@ -86,7 +86,7 @@ const DiagnosticTest = () => {
           ]
         };
 
-        const tokenURI = await uploadCompleteNFT(nftData);
+        const { tokenURI } = await uploadCompleteNFT(nftData);
         addResult('IPFS-NFT', 'success', `NFT uploadé: ${tokenURI}`);
 
         // Test 6: Création NFT sur blockchain

@@ -36,23 +36,22 @@ export const getIPFSGatewayUrl = (ipfsUrl) => {
  * @returns {string|null} - URL de l'image ou null
  */
 export const getNFTImageUrl = (nft) => {
-  // Priority 1: Image locale (pour l'affichage rapide)
+  // Priority 1: Image locale base64 ou HTTP complète
   if (nft.image && (nft.image.startsWith('data:') || nft.image.startsWith('http'))) {
     return nft.image;
   }
 
-  // Priority 2: Image IPFS depuis les métadonnées
-  if (nft.ipfsTokenURI) {
-    try {
-      // Si c'est une URL ipfs://, on doit récupérer les métadonnées
-      // Pour l'instant, utiliser l'image locale ou un placeholder
-      return nft.image || null;
-    } catch (error) {
-      console.warn('Erreur parsing IPFS metadata:', error);
-    }
+  // Priority 2: Image IPFS directe
+  if (nft.image && nft.image.startsWith('ipfs://')) {
+    return getIPFSGatewayUrl(nft.image);
   }
 
-  // Priority 3: Image directe IPFS
+  // Priority 3: Image directe IPFS (hash seul)
+  if (nft.image && (nft.image.startsWith('Qm') || nft.image.length === 46)) {
+    return getIPFSGatewayUrl(nft.image);
+  }
+
+  // Priority 4: Fallback pour autres formats
   if (nft.image) {
     return getIPFSGatewayUrl(nft.image);
   }

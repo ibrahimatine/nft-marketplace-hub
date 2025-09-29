@@ -1,6 +1,7 @@
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
+import { initializeContractService } from './services/contractService';
 
 // Components
 import Header from './components/Layout/Header/Header.jsx';
@@ -13,6 +14,8 @@ import Portfolio from './pages/Portfolio/Portfolio.jsx';
 import SubmitNFT from './pages/SubmitNFT/SubmitNFT.jsx';
 import TestIPFS from './pages/TestIPFS/TestIPFS.jsx';
 import DiagnosticTest from './pages/DiagnosticTest/DiagnosticTest.jsx';
+import TestCategory from './pages/TestCategory/TestCategory.jsx';
+import TestBlockchainCategory from './pages/TestBlockchainCategory/TestBlockchainCategory.jsx';
 
 // Context pour gérer l'état des NFTs et wallet
 const AppContext = createContext();
@@ -32,8 +35,12 @@ const AppProvider = ({ children }) => {
   const [walletAddress, setWalletAddress] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Vérifier si MetaMask est déjà connecté au chargement
+  // Vérifier si MetaMask est déjà connecté au chargement et initialiser le service de contrat
   useEffect(() => {
+    // Initialiser le service de vérification de contrat
+    const contractInfo = initializeContractService();
+    console.log('📋 Informations du contrat:', contractInfo);
+
     checkConnection();
   }, []);
 
@@ -218,6 +225,8 @@ function App() {
               <Route path="/nft/:id" element={<NFTDetail />} />
               <Route path="/test-ipfs" element={<TestIPFS />} />
               <Route path="/diagnostic" element={<DiagnosticTest />} />
+              <Route path="/test-category" element={<TestCategory />} />
+              <Route path="/test-blockchain-category" element={<TestBlockchainCategory />} />
               <Route
                 path="/portfolio"
                 element={

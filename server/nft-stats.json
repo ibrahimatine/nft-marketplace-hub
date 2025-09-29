@@ -1,69 +1,56 @@
 {
   "nfts": {
     "1": {
-      "views": 5,
-      "likes": 1,
-      "likedBy": [
-        "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
-      ]
+      "views": 3,
+      "likes": 0,
+      "likedBy": []
     },
     "2": {
-      "views": 22,
+      "views": 4,
       "likes": 1,
       "likedBy": [
-        "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
       ]
     },
     "3": {
-      "views": 3,
+      "views": 1,
+      "likes": 0,
+      "likedBy": []
+    },
+    "4": {
+      "views": 2,
+      "likes": 0,
+      "likedBy": []
+    },
+    "5": {
+      "views": 1,
       "likes": 2,
       "likedBy": [
         "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
         "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
       ]
     },
-    "4": {
-      "views": 0,
-      "likes": 0,
-      "likedBy": []
-    },
-    "test-local": {
+    "local-1759109329127": {
       "views": 1,
       "likes": 0,
       "likedBy": []
     },
-    "local-1": {
-      "views": 3,
-      "likes": 1,
-      "likedBy": [
-        "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
-      ]
-    },
-    "local-2": {
+    "local-1759110076543": {
       "views": 1,
       "likes": 0,
       "likedBy": []
     },
-    "local-1758985267535": {
-      "views": 2,
+    "local-1759111511086": {
+      "views": 4,
       "likes": 0,
       "likedBy": []
     },
-    "timer-test": {
-      "views": 2,
-      "likes": 0,
-      "likedBy": []
-    },
-    "timer-test-2": {
-      "views": 2,
-      "likes": 0,
-      "likedBy": []
-    },
-    "local-1758988876696": {
+    "local-1759111149605": {
       "views": 1,
       "likes": 0,
       "likedBy": []
     }
   },
-  "lastUpdated": "2025-09-27T16:58:20.515Z"
+  "lastUpdated": "2025-09-29T02:11:04.405Z",
+  "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 }

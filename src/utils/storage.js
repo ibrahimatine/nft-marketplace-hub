@@ -73,3 +73,6 @@ export const clearSubmittedNFTs = () => {
     return false;
   }
 };
+
+// Alias pour le service de contrat
+export const clearLocalStorage = clearSubmittedNFTs;

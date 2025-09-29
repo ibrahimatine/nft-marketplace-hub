@@ -26,6 +26,7 @@ import { useAppContext } from '../../App';
 import { getNFTDetails, withdrawNFT, listNFTForSale, buyNFT, getNFTHistory } from '../../utils/contract';
 import { getSubmittedNFTs, updateSubmittedNFT } from '../../utils/storage';
 import { getNFTStats, incrementNFTViews, toggleNFTLike } from '../../services/statsService';
+import { getNFTImageUrl } from '../../utils/ipfsHelpers';
 import { ethers } from 'ethers';
 import contractAddresses from '../../contracts/contract-address.json';
 
@@ -565,7 +566,7 @@ const handleMigrateToBlockchain = async () => {
           <div className="detail-image-section">
             <div className="image-container">
               <img
-                src={nft.image || 'https://via.placeholder.com/400x400/e5e7eb/9ca3af?text=No+Image'}
+                src={getNFTImageUrl(nft) || 'https://via.placeholder.com/400x400/e5e7eb/9ca3af?text=No+Image'}
                 alt={nft.name}
                 className="nft-image"
               />

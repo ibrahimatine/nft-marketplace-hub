@@ -158,7 +158,10 @@ export const uploadCompleteNFT = async (nftData) => {
     console.log('Métadonnées IPFS:', getIPFSUrl(metadataHash));
     console.log('Token URI:', tokenURI);
 
-    return tokenURI;
+    return {
+      tokenURI,
+      imageURI: `ipfs://${imageHash}`
+    };
   } catch (error) {
     console.error('Erreur upload complet NFT:', error);
     throw error;

@@ -49,6 +49,31 @@ export const getContractReadOnly = async () => {
     }
 };
 
+// Fonction helper pour extraire la catégorie des attributes
+const extractCategoryFromMetadata = (metadata) => {
+    // 1. Vérifier d'abord si metadata.category existe directement
+    if (metadata.category) {
+        return metadata.category;
+    }
+
+    // 2. Chercher dans les attributes
+    if (metadata.attributes && Array.isArray(metadata.attributes)) {
+        const categoryAttribute = metadata.attributes.find(attr =>
+            attr.trait_type === "Category" ||
+            attr.trait_type === "category" ||
+            attr.name === "Category" ||
+            attr.name === "category"
+        );
+
+        if (categoryAttribute && categoryAttribute.value) {
+            return categoryAttribute.value;
+        }
+    }
+
+    // 3. Fallback
+    return null;
+};
+
 // Fonction helper pour traiter un item de marché
 const processMarketItem = async (contract, item) => {
     try {
@@ -87,7 +112,8 @@ const processMarketItem = async (contract, item) => {
         let metadata = {
             name: `NFT #${tokenId}`,
             description: "NFT disponible sur le marketplace",
-            image: null
+            image: null,
+            attributes: []
         };
 
         if (tokenUri) {
@@ -144,7 +170,17 @@ const processMarketItem = async (contract, item) => {
                 // Les métadonnées par défaut sont déjà définies
             }
         }
-        
+
+        // Debug: afficher les métadonnées récupérées
+        const extractedCategory = extractCategoryFromMetadata(metadata);
+        console.log(`=== DEBUG MÉTADONNÉES TOKEN ${tokenId} ===`);
+        console.log('Metadata complète:', metadata);
+        console.log('Catégorie extraite:', extractedCategory);
+        console.log('LocalNFT trouvé:', localNFT ? 'Oui' : 'Non');
+        if (localNFT) {
+            console.log('Catégorie locale:', localNFT.category);
+        }
+
         // Utiliser les métadonnées locales si disponibles, sinon blockchain
         return {
             id: tokenId,
@@ -160,7 +196,7 @@ const processMarketItem = async (contract, item) => {
             seller: item.seller || 'Inconnu',
             sold: item.sold || false,
             forSale: item.listed || false,
-            category: localNFT ? localNFT.category : (metadata.category || "Digital Art"),
+            category: localNFT ? localNFT.category : (extractCategoryFromMetadata(metadata) || "Digital Art"),
             likes: localNFT ? (localNFT.likes || 0) : 0,
             views: localNFT ? (localNFT.views || 0) : 0,
             createdAt: new Date().toISOString().split('T')[0],
@@ -610,7 +646,7 @@ export const getNFTDetails = async (tokenId) => {
             creator: creator || 'Inconnu',
             sold: marketItem ? marketItem.sold : false,
             forSale: marketItem ? marketItem.listed : false,
-            category: localNFT ? localNFT.category : (metadata.category || "Digital Art"),
+            category: localNFT ? localNFT.category : (extractCategoryFromMetadata(metadata) || "Digital Art"),
             likes: localNFT ? localNFT.likes || 0 : 0,
             views: localNFT ? localNFT.views || 0 : 0,
             createdAt: new Date().toISOString().split('T')[0],

@@ -25,9 +25,18 @@ const initializeDataFile = async () => {
         if (!await fs.pathExists(DATA_FILE)) {
             await fs.writeJson(DATA_FILE, {
                 nfts: {},
-                lastUpdated: new Date().toISOString()
+                lastUpdated: new Date().toISOString(),
+                contractAddress: null
             });
             console.log('📄 Fichier de données initialisé');
+        } else {
+            // Vérifier et ajouter le champ contractAddress s'il manque
+            const data = await fs.readJson(DATA_FILE);
+            if (!data.hasOwnProperty('contractAddress')) {
+                data.contractAddress = null;
+                await fs.writeJson(DATA_FILE, data, { spaces: 2 });
+                console.log('📄 Champ contractAddress ajouté au fichier existant');
+            }
         }
     } catch (error) {
         console.error('Erreur initialisation fichier:', error);
@@ -300,14 +309,22 @@ app.get('/api/recommendations', async (req, res) => {
 // DELETE - Reset toutes les stats
 app.delete('/api/stats/reset', async (req, res) => {
     try {
+        const { contractAddress } = req.body || {};
+
         const data = {
             nfts: {},
-            lastUpdated: new Date().toISOString()
+            lastUpdated: new Date().toISOString(),
+            contractAddress: contractAddress || null
         };
         await writeData(data);
         recentSales.clear(); // Reset aussi les ventes récentes
-        console.log('🧹 Stats réinitialisées');
-        res.json({ success: true, message: 'Stats réinitialisées' });
+
+        const message = contractAddress
+            ? `Stats réinitialisées pour le nouveau contrat ${contractAddress}`
+            : 'Stats réinitialisées';
+
+        console.log('🧹', message);
+        res.json({ success: true, message });
     } catch (error) {
         console.error('Erreur DELETE reset:', error);
         res.status(500).json({ error: 'Erreur serveur' });

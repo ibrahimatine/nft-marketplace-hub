@@ -39,7 +39,7 @@ const TestIPFS = () => {
       };
 
       // Upload vers IPFS
-      const tokenURI = await uploadCompleteNFT(nftData);
+      const { tokenURI } = await uploadCompleteNFT(nftData);
 
       setUploadResult({
         success: true,

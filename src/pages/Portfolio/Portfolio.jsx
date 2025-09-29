@@ -310,64 +310,6 @@ const Portfolio = () => {
           </div>
         )}
 
-        {/* Tabs et Contrôles */}
-        <div className="portfolio-controls">
-          <div className="tabs">
-            <button 
-              className={`tab ${activeTab === 'owned' ? 'active' : ''}`}
-              onClick={() => setActiveTab('owned')}
-            >
-              <Package size={18} />
-              Tous ({portfolioStats.totalNFTs})
-            </button>
-            <button 
-              className={`tab ${activeTab === 'created' ? 'active' : ''}`}
-              onClick={() => setActiveTab('created')}
-            >
-              <Brush size={18} />
-              Créés ({portfolioStats.createdCount + portfolioStats.submittedCount})
-            </button>
-            <button 
-              className={`tab ${activeTab === 'onsale' ? 'active' : ''}`}
-              onClick={() => setActiveTab('onsale')}
-            >
-              <Tag size={18} />
-              En vente ({portfolioStats.onSaleCount})
-            </button>
-            <button 
-              className={`tab ${activeTab === 'submitted' ? 'active' : ''}`}
-              onClick={() => setActiveTab('submitted')}
-            >
-              <Clock size={18} />
-              Locaux ({portfolioStats.submittedCount})
-            </button>
-          </div>
-
-          <div className="view-controls">
-            <button 
-              className="toggle-values"
-              onClick={() => setShowValues(!showValues)}
-            >
-              {showValues ? <Eye size={18} /> : <EyeOff size={18} />}
-              {showValues ? 'Masquer' : 'Afficher'} les valeurs
-            </button>
-            
-            <div className="view-toggle">
-              <button 
-                className={`view-btn ${viewMode === 'grid' ? 'active' : ''}`}
-                onClick={() => setViewMode('grid')}
-              >
-                <Grid size={18} />
-              </button>
-              <button 
-                className={`view-btn ${viewMode === 'list' ? 'active' : ''}`}
-                onClick={() => setViewMode('list')}
-              >
-                <List size={18} />
-              </button>
-            </div>
-          </div>
-        </div>
 
         {/* Loading State */}
         {loading && (
