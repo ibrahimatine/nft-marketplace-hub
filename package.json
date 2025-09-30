@@ -5,7 +5,7 @@
     "dev": "concurrently \"vite\" \"cd server && npm start\" \"npm run update-readme-watch\"",
     "dev:frontend": "vite",
     "dev:server": "cd server && npm start",
-    "build": "vite build",
+    "build": "npx hardhat compile && vite build",
     "preview": "vite preview",
     "update-readme-stats": "node scripts/updateReadmeStats.js",
     "update-readme-watch": "nodemon -w server/nft-stats.json --exec \"npm run update-readme-stats\"",
