@@ -60,3 +60,28 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 
+# Claude Code assistant files
+CLAUDE.md
+.claude/
+
+# Test files and documentation non essentiels
+test*.html
+test*.js
+debug*.js
+*test*.md
+final_test_summary.md
+explore_upgrade_summary.md
+metamask_test_accounts.md
+test.md
+test_all_pages.md
+test_ipfs_workflow.md
+test_fix_verification.md
+test_ownership_fix.md
+test_results_manual.md
+tests.md
+
+# Temporary files
+temp*
+tmp*
+*.tmp
+

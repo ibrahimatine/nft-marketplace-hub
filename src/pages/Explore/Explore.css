@@ -29,6 +29,34 @@
   margin-bottom: var(--spacing-2xl);
 }
 
+.status-filters {
+  display: flex;
+  gap: var(--spacing-xs);
+  margin-top: var(--spacing-xs);
+}
+
+.status-btn {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-white);
+  color: var(--color-text);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all 0.2s ease;
+}
+
+.status-btn:hover {
+  background-color: var(--color-bg-light);
+  border-color: var(--color-primary);
+}
+
+.status-btn.active {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border-color: var(--color-primary);
+}
+
 .filters-row {
   display: flex;
   gap: var(--spacing-lg);

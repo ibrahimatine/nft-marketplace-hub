@@ -246,82 +246,6 @@
   color: var(--color-text);
 }
 
-/* Attributes Section */
-.attributes-section {
-  padding: var(--spacing-lg);
-  background-color: var(--color-bg-light);
-  border-radius: var(--radius-lg);
-}
-
-.attributes-section h4 {
-  font-size: var(--font-size-lg);
-  margin-bottom: var(--spacing-xs);
-  color: var(--color-text);
-}
-
-.attributes-section p {
-  color: var(--color-text-light);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.attribute-input {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
-}
-
-.attribute-input input {
-  flex: 1;
-  padding: var(--spacing-sm) var(--spacing-md);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background-color: var(--color-white);
-}
-
-.btn-small {
-  padding: var(--spacing-sm) var(--spacing-md);
-  font-size: var(--font-size-sm);
-}
-
-.attributes-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm);
-}
-
-.attribute-tag {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
-  background-color: var(--color-white);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-}
-
-.attr-type {
-  font-weight: 600;
-  color: var(--color-accent);
-}
-
-.attr-value {
-  color: var(--color-text);
-}
-
-.remove-attr {
-  background: none;
-  color: var(--color-text-light);
-  padding: 2px;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
-}
-
-.remove-attr:hover {
-  color: var(--color-error);
-  background-color: rgba(239, 68, 68, 0.1);
-}
 
 /* Submit Section */
 .submit-section {
@@ -390,8 +314,28 @@
 .success-message p {
   color: var(--color-text-light);
   font-size: var(--font-size-lg);
-  margin-bottom: var(--spacing-2xl);
+  margin-bottom: var(--spacing-md);
   max-width: 500px;
+}
+
+.blockchain-success {
+  color: var(--color-success) !important;
+  font-weight: 600;
+}
+
+.transaction-hash {
+  font-family: monospace;
+  font-size: var(--font-size-sm) !important;
+  color: var(--color-accent) !important;
+  background-color: var(--color-bg-light);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+  word-break: break-all;
+}
+
+.local-info {
+  color: var(--color-primary) !important;
+  font-weight: 500;
 }
 
 /* Buttons */
@@ -499,13 +443,6 @@
     justify-content: center;
   }
   
-  .attributes-section {
-    padding: var(--spacing-md);
-  }
-  
-  .attribute-input {
-    flex-direction: column;
-  }
 }
 
 @media (max-width: 480px) {

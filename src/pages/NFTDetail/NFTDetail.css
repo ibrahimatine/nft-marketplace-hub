@@ -162,6 +162,29 @@
   margin: 0;
 }
 
+.token-id-display {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin: var(--spacing-md) 0;
+}
+
+.token-id-label {
+  font-size: var(--font-size-base);
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+
+.token-id-value {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--color-accent);
+  background-color: var(--color-bg-light);
+  padding: var(--spacing-xs) var(--spacing-md);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-accent);
+}
+
 .ownership-info {
   display: flex;
   gap: var(--spacing-2xl);
@@ -239,6 +262,15 @@
 .price-currency {
   font-size: var(--font-size-xl);
   font-weight: 500;
+}
+
+.price-value.sold {
+  color: var(--color-success);
+}
+
+.status-text {
+  font-size: var(--font-size-2xl);
+  font-weight: bold;
 }
 
 .price-usd {
@@ -716,4 +748,310 @@
     width: 100%;
     justify-content: center;
   }
+}
+
+/* Historique des propriétaires */
+.nft-history {
+  margin-top: var(--spacing-2xl);
+  padding: var(--spacing-xl);
+  background-color: var(--color-bg-light);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.nft-history h3 {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xl);
+  color: var(--color-text);
+  font-size: var(--font-size-xl);
+}
+
+.history-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-2xl);
+  color: var(--color-text-light);
+}
+
+.history-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.history-event {
+  display: flex;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg);
+  background-color: var(--color-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-base);
+}
+
+.history-event:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(135, 206, 235, 0.1);
+  transform: translateY(-2px);
+}
+
+.event-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.event-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xs);
+}
+
+.event-type {
+  font-weight: 600;
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+}
+
+.event-date {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-light);
+}
+
+.event-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.addresses {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.address-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--color-text-light);
+  font-size: var(--font-size-sm);
+}
+
+.address {
+  font-family: var(--font-family-mono);
+  background-color: var(--color-bg-gray);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+
+.address.blockchain {
+  background-color: #e3f2fd;
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.address.marketplace {
+  background-color: #f3e5f5;
+  color: #7b1fa2;
+  font-weight: 600;
+}
+
+.address.user {
+  background-color: var(--color-bg-gray);
+  color: var(--color-text);
+}
+
+.address-info.blockchain {
+  color: #1976d2;
+}
+
+.address-info.marketplace {
+  color: #7b1fa2;
+}
+
+.address-info.user {
+  color: var(--color-text-light);
+}
+
+.event-price {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  color: var(--color-accent);
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+}
+
+.event-transaction {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-lighter);
+  font-family: var(--font-family-mono);
+  cursor: help;
+  transition: all var(--transition-base);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  position: relative;
+}
+
+.event-transaction:hover {
+  background-color: var(--color-bg-light);
+  color: var(--color-text);
+}
+
+.transaction-text {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-lighter);
+}
+
+.transaction-hash {
+  background-color: var(--color-bg-gray);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all var(--transition-base);
+  font-size: var(--font-size-xs);
+}
+
+.event-transaction:hover .transaction-hash {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.event-transaction:hover .transaction-text {
+  color: var(--color-text);
+}
+
+.history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-2xl);
+  color: var(--color-text-light);
+  text-align: center;
+}
+
+.history-empty svg {
+  color: var(--color-text-lighter);
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive pour l'historique */
+@media (max-width: 768px) {
+  .nft-history {
+    padding: var(--spacing-lg);
+  }
+
+  .history-event {
+    padding: var(--spacing-md);
+  }
+
+  .event-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+
+  .addresses {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--spacing-xs);
+  }
+}.not-for-sale {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  border-radius: var(--radius-lg);
+  color: #64748b;
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.not-for-sale svg {
+  color: #94a3b8;
+}
+
+/* Stats NFT */
+.nft-stats {
+  margin: var(--spacing-lg) 0;
+  padding: var(--spacing-lg);
+  background-color: var(--color-bg-light);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+}
+
+.stats-row {
+  display: flex;
+  gap: var(--spacing-xl);
+  align-items: center;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--color-text-light);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+}
+
+.like-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  padding: var(--spacing-sm);
+  border-radius: var(--radius-md);
+}
+
+.like-button:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+  transform: scale(1.05);
+}
+
+.like-button:hover span {
+  color: #EF4444;
 }

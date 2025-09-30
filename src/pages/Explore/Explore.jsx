@@ -3,31 +3,98 @@ import { useNavigate } from 'react-router-dom';
 import './Explore.css';
 import NFTCard from '../../components/NFTCard/NFTCard';
 import { Filter, Search, Grid, List } from 'lucide-react';
-import { mockNFTs, categories, priceFilters } from '../../data/mockData';
+import { categories, priceFilters } from '../../data/mockData';
 import { useAppContext } from '../../App';
+import { fetchAllMarketplaceNFTs } from '../../utils/contract';
+import { getSubmittedNFTs } from '../../utils/storage';
 
 const Explore = () => {
   const navigate = useNavigate();
-  const { isWalletConnected, setSelectedNFT } = useAppContext();
-  
+  const { setSelectedNFT } = useAppContext();
+
   const [nfts, setNfts] = useState([]);
   const [filteredNfts, setFilteredNfts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('Tous');
   const [selectedPriceFilter, setSelectedPriceFilter] = useState(priceFilters[0]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showOnlyForSale, setShowOnlyForSale] = useState(false);
+  const [statusFilter, setStatusFilter] = useState('tous'); // 'tous', 'en-vente', 'vendus'
   const [gridView, setGridView] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const itemsPerPage = 6;
 
+  // Charger les NFTs au montage du composant
   useEffect(() => {
-    setNfts(mockNFTs);
-    setFilteredNfts(mockNFTs);
+    loadAllNFTs();
   }, []);
 
+  // Filtrer les NFTs quand les critères changent
   useEffect(() => {
     filterNFTs();
-  }, [selectedCategory, selectedPriceFilter, searchQuery, showOnlyForSale, nfts]);
+  }, [selectedCategory, selectedPriceFilter, searchQuery, statusFilter, nfts]);
+
+  const loadAllNFTs = async () => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      // 1. Charger TOUS les NFTs de la blockchain (pas seulement ceux en vente)
+      const marketplaceNFTs = await fetchAllMarketplaceNFTs().catch(err => {
+        console.warn('Erreur chargement marketplace blockchain:', err);
+        return [];
+      });
+
+      // 2. Charger les NFTs soumis localement
+      const localNFTs = getSubmittedNFTs().map(nft => ({
+        ...nft,
+        source: 'local' // Marquer comme local pour différenciation
+      }));
+
+      // 3. Filtrer les NFTs locaux qui existent déjà sur la blockchain pour éviter doublons
+      const blockchainTokenIds = new Set(marketplaceNFTs.map(nft => nft.tokenId || nft.id));
+      const filteredLocalNFTs = localNFTs.filter(localNFT => {
+        // Garder seulement les NFTs locaux qui ne sont PAS encore sur la blockchain
+        // Si le NFT a été minté (blockchainStatus === 'minted') ET qu'il a un tokenId, vérifier s'il existe déjà
+        if (localNFT.blockchainStatus === 'minted' && localNFT.tokenId) {
+          return !blockchainTokenIds.has(parseInt(localNFT.tokenId));
+        }
+        // Garder tous les NFTs qui ne sont pas mintés ou qui n'ont pas de tokenId
+        return localNFT.blockchainStatus !== 'minted';
+      });
+
+      // 4. Combiner tous les NFTs sans doublons
+      const allNFTs = [
+        ...marketplaceNFTs.map(nft => ({ ...nft, source: 'blockchain' })),
+        ...filteredLocalNFTs
+      ];
+
+      console.log('NFTs chargés:', {
+        blockchain: marketplaceNFTs.length,
+        local: localNFTs.length,
+        localFiltered: filteredLocalNFTs.length,
+        total: allNFTs.length
+      });
+
+      setNfts(allNFTs);
+      setFilteredNfts(allNFTs);
+
+    } catch (error) {
+      console.error('Erreur chargement NFTs:', error);
+      setError('Erreur lors du chargement des NFTs: ' + error.message);
+      
+      // En cas d'erreur, charger au moins les NFTs locaux
+      const localNFTs = getSubmittedNFTs().map(nft => ({
+        ...nft,
+        source: 'local'
+      }));
+      setNfts(localNFTs);
+      setFilteredNfts(localNFTs);
+      
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filterNFTs = () => {
     let filtered = [...nfts];
@@ -38,23 +105,27 @@ const Explore = () => {
     }
 
     // Filtre par prix
-    filtered = filtered.filter(nft => 
-      nft.price >= selectedPriceFilter.min && 
-      nft.price <= selectedPriceFilter.max
-    );
+    filtered = filtered.filter(nft => {
+      const price = nft.price || 0;
+      return price >= selectedPriceFilter.min && price <= selectedPriceFilter.max;
+    });
 
     // Filtre par recherche
     if (searchQuery) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(nft => 
-        nft.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        nft.description.toLowerCase().includes(searchQuery.toLowerCase())
+        nft.name.toLowerCase().includes(query) ||
+        (nft.description && nft.description.toLowerCase().includes(query))
       );
     }
 
-    // Filtre "en vente uniquement"
-    if (showOnlyForSale) {
-      filtered = filtered.filter(nft => nft.forSale);
+    // Filtre par statut
+    if (statusFilter === 'en-vente') {
+      filtered = filtered.filter(nft => nft.forSale && !nft.sold);
+    } else if (statusFilter === 'vendus') {
+      filtered = filtered.filter(nft => nft.sold === true);
     }
+    // Si 'tous', on ne filtre pas par statut
 
     setFilteredNfts(filtered);
     setCurrentPage(1);
@@ -62,11 +133,19 @@ const Explore = () => {
 
   const handleNFTClick = (nft) => {
     setSelectedNFT(nft);
-    navigate(`/nft/${nft.id}`);
+    if (nft.source === 'local') {
+      navigate(`/nft/local-${nft.id}`);
+    } else {
+      navigate(`/nft/${nft.id}`);
+    }
   };
 
   const handleSubmitClick = () => {
     navigate('/submit');
+  };
+
+  const handleRefresh = () => {
+    loadAllNFTs();
   };
 
   // Pagination
@@ -80,21 +159,69 @@ const Explore = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const NoResults = () => (
+    <div className="no-results">
+      <Filter size={48} />
+      <h3>Aucun NFT trouvé</h3>
+      <p>Aucun NFT ne correspond à vos critères de recherche</p>
+      <div className="no-results-actions">
+        <button 
+          className="btn btn-secondary"
+          onClick={() => {
+            setSelectedCategory('Tous');
+            setSelectedPriceFilter(priceFilters[0]);
+            setSearchQuery('');
+            setShowOnlyForSale(false);
+          }}
+        >
+          Réinitialiser les filtres
+        </button>
+        <button 
+          className="btn btn-primary"
+          onClick={handleSubmitClick}
+        >
+          Créer un NFT
+        </button>
+      </div>
+    </div>
+  );
+
+  const EmptyState = () => (
+    <div className="empty-state">
+      <div className="empty-icon">
+        <Filter size={64} />
+      </div>
+      <h3>Aucun NFT disponible</h3>
+      <p>Soyez le premier à créer et partager vos œuvres uniques</p>
+      <button 
+        className="btn btn-primary"
+        onClick={handleSubmitClick}
+      >
+        Créer le premier NFT
+      </button>
+    </div>
+  );
+
   return (
     <div className="explore">
       <div className="container">
-        {/* Header */}
         <div className="explore-header">
           <h1 className="explore-title">Explorer les NFTs</h1>
           <p className="explore-subtitle">
-            Découvrez {filteredNfts.length} œuvres uniques dans notre collection
+            Découvrez {filteredNfts.length} œuvre{filteredNfts.length > 1 ? 's' : ''} unique{filteredNfts.length > 1 ? 's' : ''} dans notre collection
           </p>
         </div>
 
-        {/* Filters Bar */}
+        {/* Message d'erreur */}
+        {error && (
+          <div className="error-banner">
+            <p>{error}</p>
+            <button onClick={handleRefresh}>Réessayer</button>
+          </div>
+        )}
+
         <div className="explore-filters">
           <div className="filters-row">
-            {/* Search */}
             <div className="search-box">
               <Search size={20} />
               <input
@@ -105,7 +232,6 @@ const Explore = () => {
               />
             </div>
 
-            {/* View Toggle */}
             <div className="view-toggle">
               <button 
                 className={`view-btn ${gridView ? 'active' : ''}`}
@@ -123,7 +249,6 @@ const Explore = () => {
           </div>
 
           <div className="filters-row">
-            {/* Category Filter */}
             <div className="filter-group">
               <label>Catégorie</label>
               <select 
@@ -136,7 +261,6 @@ const Explore = () => {
               </select>
             </div>
 
-            {/* Price Filter */}
             <div className="filter-group">
               <label>Prix</label>
               <select 
@@ -149,59 +273,82 @@ const Explore = () => {
               </select>
             </div>
 
-            {/* For Sale Toggle */}
             <div className="filter-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={showOnlyForSale}
-                  onChange={(e) => setShowOnlyForSale(e.target.checked)}
-                />
-                <span>En vente uniquement</span>
-              </label>
+              <label>Statut</label>
+              <div className="status-filters">
+                <button
+                  className={`status-btn ${statusFilter === 'tous' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('tous')}
+                >
+                  Tous
+                </button>
+                <button
+                  className={`status-btn ${statusFilter === 'en-vente' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('en-vente')}
+                >
+                  En vente
+                </button>
+                <button
+                  className={`status-btn ${statusFilter === 'vendus' ? 'active' : ''}`}
+                  onClick={() => setStatusFilter('vendus')}
+                >
+                  Vendus
+                </button>
+              </div>
             </div>
 
-            {/* Submit NFT Button */}
             <button 
               className="btn btn-primary"
               onClick={handleSubmitClick}
             >
               Soumettre un NFT
             </button>
+
+            <button 
+              className="btn btn-secondary"
+              onClick={handleRefresh}
+              disabled={loading}
+            >
+              {loading ? 'Chargement...' : 'Actualiser'}
+            </button>
           </div>
         </div>
 
-        {/* NFT Grid/List */}
-        <div className={`nft-container ${gridView ? 'nft-grid' : 'nft-list'}`}>
-          {currentNfts.length > 0 ? (
-            currentNfts.map(nft => (
-              <NFTCard 
-                key={nft.id} 
-                nft={nft}
-                onClick={handleNFTClick}
-              />
-            ))
-          ) : (
-            <div className="no-results">
-              <Filter size={48} />
-              <p>Aucun NFT ne correspond à vos critères</p>
-              <button 
-                className="btn btn-secondary"
-                onClick={() => {
-                  setSelectedCategory('Tous');
-                  setSelectedPriceFilter(priceFilters[0]);
-                  setSearchQuery('');
-                  setShowOnlyForSale(false);
-                }}
-              >
-                Réinitialiser les filtres
-              </button>
-            </div>
-          )}
-        </div>
+        {/* État de chargement */}
+        {loading && (
+          <div className="loading-state">
+            <div className="loading-spinner"></div>
+            <p>Chargement des NFTs...</p>
+          </div>
+        )}
+
+        {/* Contenu des NFTs */}
+        {!loading && (
+          <div className={`nft-container ${gridView ? 'nft-grid' : 'nft-list'}`}>
+            {nfts.length === 0 ? (
+              <EmptyState />
+            ) : filteredNfts.length === 0 ? (
+              <NoResults />
+            ) : (
+              currentNfts.map(nft => (
+                <div key={`${nft.source}-${nft.id}`} className="nft-wrapper">
+                  <NFTCard 
+                    nft={nft}
+                    onClick={handleNFTClick}
+                    badge={nft.source === 'local' ? { type: 'new', text: 'Local' } : null}
+                  />
+                  {/* Badge source */}
+                  <div className="nft-source-badge">
+                    {nft.source === 'blockchain' ? '⛓️ Blockchain' : '💾 Local'}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
+        {!loading && totalPages > 1 && (
           <div className="pagination">
             <button 
               className="pagination-btn"
@@ -230,6 +377,18 @@ const Explore = () => {
             >
               Suivant
             </button>
+          </div>
+        )}
+
+        {/* Statistiques */}
+        {!loading && nfts.length > 0 && (
+          <div className="explore-stats">
+            <div className="stats-summary">
+              <span>Total: {nfts.length} NFTs</span>
+              <span>Blockchain: {nfts.filter(n => n.source === 'blockchain').length}</span>
+              <span>Local: {nfts.filter(n => n.source === 'local').length}</span>
+              <span>En vente: {nfts.filter(n => n.forSale).length}</span>
+            </div>
           </div>
         )}
       </div>

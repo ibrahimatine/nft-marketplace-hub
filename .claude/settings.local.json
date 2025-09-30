@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run build:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npx hardhat node:*)",
+      "Bash(npx hardhat run:*)",
+      "Bash(npx hardhat:*)",
+      "Bash(node:*)",
+      "Bash(netstat:*)",
+      "Bash(taskkill:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(cmd //c:*)",
+      "Bash(npm install:*)",
+      "Bash(findstr:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:localhost)",
+      "Bash(tasklist)",
+      "Bash(python:*)",
+      "Bash(tasklist:*)",
+      "Bash(timeout:*)",
+      "Bash(npm run update-readme-stats:*)",
+      "Bash(npm run:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
