@@ -5,8 +5,8 @@ Un marketplace NFT décentralisé moderne construit avec React et Ethereum, perm
 ## 📊 Statistiques en Temps Réel
 
 <!-- MARKETPLACE_STATS_START -->
-- **NFTs en Vente**: 2
-- **Dernière Mise à Jour**: 29/09/2025 02:50:15
+- **NFTs en Vente**: 0
+- **Dernière Mise à Jour**: 30/09/2025 00:19:11
 <!-- MARKETPLACE_STATS_END -->
 
 ## 🚀 Fonctionnalités
@@ -133,6 +133,83 @@ Les NFTs sont organisés par catégories avec extraction automatique des métado
 - **Métadonnées structurées** avec attributs
 - **Fallback** vers plusieurs gateways
 
+## 🎨 Ajouter des Sample NFTs
+
+Pour tester rapidement votre marketplace avec des NFTs d'exemple, plusieurs scripts sont disponibles :
+
+### 1. Créer des NFTs de Test (Simple)
+
+```bash
+# Créer des NFTs de base pour tester les fonctionnalités
+npx hardhat run scripts/createTestNFTs.js --network localhost
+```
+
+Ce script crée plusieurs NFTs avec :
+- Images placeholder colorées
+- Métadonnées variées (noms, descriptions)
+- Prix différents (0.5 ETH, 1.0 ETH, etc.)
+- Catégories diverses
+
+### 2. Créer et Lister des NFTs (Complet)
+
+```bash
+# Créer des NFTs et les mettre automatiquement en vente
+npx hardhat run scripts/createAndListTestNFTs.js --network localhost
+```
+
+Ce script avancé :
+- Crée des NFTs avec différents comptes (deployer, user1, user2)
+- Met automatiquement certains NFTs en vente
+- Simule un marketplace actif avec plusieurs vendeurs
+- Génère des métadonnées JSON complètes
+
+### 3. Personnaliser vos Sample NFTs
+
+Vous pouvez modifier les scripts pour ajouter vos propres NFTs :
+
+1. **Éditer le script** `scripts/createTestNFTs.js`
+2. **Modifier l'array testNFTs** :
+
+```javascript
+const testNFTs = [
+  {
+    name: "Mon NFT Personnalisé",
+    description: "Description de mon NFT unique",
+    image: "https://votre-image-url.com/image.jpg", // ou URL IPFS
+    category: "Digital Art", // Digital Art, Photography, Music, etc.
+    price: "2.5" // Prix en ETH
+  }
+];
+```
+
+3. **Relancer le script**
+
+### 4. Script de Reset (Recommandé)
+
+```bash
+# Nettoyer complètement et recréer des NFTs frais
+npx hardhat run scripts/clearLocalNFTS.js --network localhost
+npx hardhat run scripts/createAndListTestNFTs.js --network localhost
+```
+
+### 📋 Types de NFTs Générés
+
+Les scripts créent automatiquement :
+
+- **🎨 Digital Art** - Œuvres d'art numériques
+- **📸 Photography** - Photos et captures
+- **🎵 Music** - Albums et morceaux
+- **🏃 Sports** - Cartes et moments sportifs
+- **🎮 Gaming** - Assets et personnages de jeux
+- **💼 Collectibles** - Objets de collection divers
+
+### ⚠️ Important
+
+- Les scripts utilisent les comptes de test Hardhat
+- Assurez-vous que votre blockchain locale fonctionne
+- Les NFTs seront visibles immédiatement dans l'interface
+- Utilisez MetaMask avec le réseau Hardhat (localhost:8545)
+
 ## 🚦 Scripts de Maintenance
 
 ```bash
@@ -170,6 +247,6 @@ Pour toute question ou problème :
 
 ---
 
-**Construit avec ❤️ par [Tafouiny et tine29i]**
+**Construit par [Tafouiny et tine29i]**
 
-*Dernière mise à jour automatique : 29/09/2025 02:50:15*
+*Dernière mise à jour automatique : 30/09/2025 00:19:11*

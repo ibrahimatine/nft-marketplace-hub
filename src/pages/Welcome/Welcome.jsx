@@ -41,8 +41,13 @@ const Welcome = () => {
         return [];
       });
 
-      // 3. Charger les NFTs locaux comme fallback
-      const localNFTs = getSubmittedNFTs();
+      // 3. Charger les NFTs locaux actifs (non migrés) comme fallback
+      const allLocalNFTs = getSubmittedNFTs();
+      const localNFTs = allLocalNFTs.filter(nft =>
+        nft.blockchainStatus !== 'minted' && nft.status === 'submitted'
+      );
+
+      console.log(`🏠 NFTs locaux: ${allLocalNFTs.length} total, ${localNFTs.length} actifs (non migrés)`);
 
       // 4. Combiner toutes les sources
       const allNFTs = [
@@ -138,9 +143,12 @@ const Welcome = () => {
     } catch (error) {
       console.error('Erreur chargement données welcome:', error);
       
-      // En cas d'erreur, utiliser uniquement les données locales
-      const localNFTs = getSubmittedNFTs();
-      const fallbackNFTs = localNFTs.map(nft => ({
+      // En cas d'erreur, utiliser uniquement les données locales actives
+      const allLocalNFTs = getSubmittedNFTs();
+      const activeLocalNFTs = allLocalNFTs.filter(nft =>
+        nft.blockchainStatus !== 'minted' && nft.status === 'submitted'
+      );
+      const fallbackNFTs = activeLocalNFTs.map(nft => ({
         ...nft,
         source: 'local',
         image: nft.image || nft.imageDataUrl || nft.imagePreview,

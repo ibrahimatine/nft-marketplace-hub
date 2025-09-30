@@ -55,7 +55,12 @@ const Explore = () => {
       const blockchainTokenIds = new Set(marketplaceNFTs.map(nft => nft.tokenId || nft.id));
       const filteredLocalNFTs = localNFTs.filter(localNFT => {
         // Garder seulement les NFTs locaux qui ne sont PAS encore sur la blockchain
-        return !localNFT.blockchainStatus || localNFT.blockchainStatus !== 'minted' || !blockchainTokenIds.has(localNFT.tokenId);
+        // Si le NFT a été minté (blockchainStatus === 'minted') ET qu'il a un tokenId, vérifier s'il existe déjà
+        if (localNFT.blockchainStatus === 'minted' && localNFT.tokenId) {
+          return !blockchainTokenIds.has(parseInt(localNFT.tokenId));
+        }
+        // Garder tous les NFTs qui ne sont pas mintés ou qui n'ont pas de tokenId
+        return localNFT.blockchainStatus !== 'minted';
       });
 
       // 4. Combiner tous les NFTs sans doublons

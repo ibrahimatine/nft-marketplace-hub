@@ -254,8 +254,11 @@ app.get('/api/marketplace-stats', async (req, res) => {
 
         // Statistiques locales (localStorage simulé côté serveur)
         // Note: Les NFTs locaux sont gérés côté client, on ne peut pas les compter ici
-        // Mais on peut estimer basé sur les stats d'accès
-        const localNFTsFromStats = Object.keys(localData.nfts || {}).filter(id => id.startsWith('local-')).length;
+        // Mais on peut estimer basé sur les stats d'accès en excluant les migrés
+        const localNFTsFromStats = Object.entries(localData.nfts || {})
+            .filter(([id, nftData]) =>
+                id.startsWith('local-') && !nftData.migrated
+            ).length;
         stats.localNFTs = localNFTsFromStats;
 
         // Total
@@ -313,6 +316,39 @@ app.post('/api/nft/:id/sale', async (req, res) => {
         res.json({ success: true, sale: saleData });
     } catch (error) {
         console.error('Erreur POST sale:', error);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+// POST - Marquer un NFT local comme migré vers la blockchain
+app.post('/api/nft/:id/migrate', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { tokenId, transactionHash } = req.body;
+
+        if (!tokenId || !transactionHash) {
+            return res.status(400).json({ error: 'tokenId et transactionHash requis' });
+        }
+
+        const data = await readData();
+
+        // Si le NFT local existe dans les stats, le marquer comme migré
+        if (data.nfts[id]) {
+            data.nfts[id].migrated = true;
+            data.nfts[id].blockchainTokenId = tokenId;
+            data.nfts[id].transactionHash = transactionHash;
+            data.nfts[id].migratedAt = new Date().toISOString();
+
+            await writeData(data);
+
+            console.log(`🔄 NFT local ${id} marqué comme migré vers blockchain (token ${tokenId})`);
+            res.json({ success: true, message: 'NFT marqué comme migré' });
+        } else {
+            console.log(`⚠️ NFT local ${id} non trouvé dans les stats`);
+            res.json({ success: true, message: 'NFT non trouvé dans les stats' });
+        }
+    } catch (error) {
+        console.error('Erreur POST migrate:', error);
         res.status(500).json({ error: 'Erreur serveur' });
     }
 });
@@ -452,7 +488,6 @@ const addTestSales = () => {
 // Démarrer le serveur
 const startServer = async () => {
     await initializeDataFile();
-    addTestSales(); // Ajouter des données de test
     app.listen(PORT, () => {
         console.log(`🚀 Serveur NFT Stats démarré sur le port ${PORT}`);
         console.log(`📊 API disponible sur http://localhost:${PORT}/api`);

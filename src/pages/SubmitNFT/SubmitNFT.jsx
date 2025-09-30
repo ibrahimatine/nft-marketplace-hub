@@ -224,6 +224,21 @@ const handleSubmit = async (e) => {
 
   try {
     if (formData.forSale) {
+      // Vérifier s'il y a un NFT local existant avec le même nom pour éviter les doublons
+      let existingLocalNFT = null;
+      try {
+        const { getSubmittedNFTs } = await import('../../utils/storage');
+        const localNFTs = getSubmittedNFTs();
+        existingLocalNFT = localNFTs.find(nft =>
+          nft.name === formData.name &&
+          nft.blockchainStatus !== 'minted'
+        );
+        if (existingLocalNFT) {
+          console.log('NFT local existant trouvé pour migration:', existingLocalNFT);
+        }
+      } catch (error) {
+        console.log('Pas de NFT local correspondant trouvé');
+      }
       console.log('Création NFT en vente directement sur la blockchain avec IPFS...');
 
       const { contract } = await getContract();
@@ -393,9 +408,43 @@ const handleSubmit = async (e) => {
 
       console.log('🎯 Token ID final:', newTokenId);
 
-      // IMPORTANT: Ne pas sauvegarder localement les NFTs mis directement en vente
-      // Ils seront récupérés automatiquement depuis la blockchain
-      console.log('NFT créé directement sur blockchain - pas de sauvegarde locale pour éviter duplication');
+      // IMPORTANT: Gérer la migration du NFT local vers blockchain
+      if (existingLocalNFT) {
+        // Si le NFT existait localement, le marquer comme migré
+        console.log('Migration du NFT local vers blockchain...');
+        try {
+          const { updateSubmittedNFT } = await import('../../utils/storage');
+          await updateSubmittedNFT(existingLocalNFT.id, {
+            tokenId: newTokenId,
+            blockchainStatus: 'minted',
+            transactionHash: transaction.hash,
+            migratedAt: new Date().toISOString()
+          });
+          console.log('✅ NFT local migré avec succès vers blockchain');
+
+          // Informer le serveur de la migration pour les statistiques
+          try {
+            const response = await fetch(`http://localhost:3000/api/nft/local-${existingLocalNFT.id}/migrate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                tokenId: newTokenId,
+                transactionHash: transaction.hash
+              })
+            });
+            if (response.ok) {
+              console.log('📊 Serveur informé de la migration NFT');
+            }
+          } catch (serverError) {
+            console.warn('Erreur notification serveur migration:', serverError);
+          }
+        } catch (migrateError) {
+          console.warn('Erreur migration NFT local:', migrateError);
+        }
+      } else {
+        // NFT créé directement sur blockchain - pas de sauvegarde locale
+        console.log('NFT créé directement sur blockchain - pas de sauvegarde locale pour éviter duplication');
+      }
 
       setSubmittedNFT({
         name: formData.name,
