@@ -1,3 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+dist-ssr/
+
+# Hardhat artifacts
+cache/
+artifacts/
+
 # Logs
 logs
 *.log
@@ -7,81 +19,47 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-.DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Node modules
-node_modules/
-
-# Build output
-dist/
-build/
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# System files
-.DS_Store
-Thumbs.db
-
 # Environment variables
 .env
 .env.local
 .env.*.local
+
+# System files
+.DS_Store
+Thumbs.db
+*.local
+.Trashes
+ehthumbs.db
+Desktop.ini
 
 # IDEs and editors
 .vscode/
 .idea/
 *.sublime-project
 *.sublime-workspace
-
-# Git
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 *.swp
-*.lock
 
-# Optional: Mac/Linux/Windows trash
-.Trashes
-ehthumbs.db
-Desktop.ini
-
-# Claude Code assistant files
-CLAUDE.md
-.claude/
-
-# Test files and documentation non essentiels
-test*.html
-test*.js
-debug*.js
-*test*.md
-final_test_summary.md
-explore_upgrade_summary.md
-metamask_test_accounts.md
-test.md
-test_all_pages.md
-test_ipfs_workflow.md
-test_fix_verification.md
-test_ownership_fix.md
-test_results_manual.md
-tests.md
+# Lock files (optional - uncomment if you don't want to commit them)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 
 # Temporary files
 temp*
 tmp*
 *.tmp
 
+# Test and debug files
+test*.html
+test*.js
+debug*.js
+*test*.md
+
+# Claude Code assistant files
+.claude/
+CLAUDE.md

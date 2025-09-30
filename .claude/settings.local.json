@@ -21,7 +21,11 @@
       "Bash(tasklist:*)",
       "Bash(timeout:*)",
       "Bash(npm run update-readme-stats:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nUpdate .gitignore for cleaner repository\n\n- Ignore Hardhat artifacts (cache/, artifacts/)\n- Ignore Claude Code files (.claude/, CLAUDE.md)\n- Remove duplicate entries\n- Better organization\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []

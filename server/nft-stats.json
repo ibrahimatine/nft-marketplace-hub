@@ -1,5 +1,36 @@
 {
-  "nfts": {},
-  "lastUpdated": "2025-09-30T00:18:50.202Z",
-  "contractAddress": "0xa513E6E4b8f2a923D98304ec87F64353C4D5C853"
+  "nfts": {
+    "1": {
+      "views": 3,
+      "likes": 2,
+      "likedBy": [
+        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+      ]
+    },
+    "2": {
+      "views": 2,
+      "likes": 2,
+      "likedBy": [
+        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+      ]
+    },
+    "1759240818065": {
+      "views": 0,
+      "likes": 1,
+      "likedBy": [
+        "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+      ]
+    },
+    "local-1759240818065": {
+      "views": 4,
+      "likes": 1,
+      "likedBy": [
+        "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+      ]
+    }
+  },
+  "lastUpdated": "2025-09-30T14:13:10.392Z",
+  "contractAddress": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 }
