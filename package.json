@@ -10,7 +10,7 @@
     "update-readme-stats": "node scripts/updateReadmeStats.js",
     "update-readme-watch": "nodemon -w server/nft-stats.json --exec \"npm run update-readme-stats\"",
     "install-git-hooks": "node scripts/installGitHooks.js",
-    "postinstall": "npm run install-git-hooks"
+    "postinstall": "test -d .git && npm run install-git-hooks || echo 'Skipping git hooks installation'"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.2.3",
